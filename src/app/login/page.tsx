@@ -65,15 +65,18 @@ export default function LoginPage() {
             </p>
             <p className="text-xs mt-3 font-medium" style={{ color: "var(--gold)" }}>{t.loginQuranRef}</p>
           </div>
-          <div className="flex gap-6 flex-wrap">
+          <div className="grid grid-cols-2 gap-3">
             {[
-              { val: "+1,200", label: t.loginStatVisual },
-              { val: "+850",   label: t.loginStatAudio },
-              { val: "120K",   label: t.loginStatFollowers },
-            ].map(s => (
-              <div key={s.label}>
-                <b className="block font-extrabold" style={{ color: "var(--gold)", fontFamily: "'Noto Kufi Arabic',sans-serif", fontSize: "20px" }}>{s.val}</b>
-                <span className="text-xs" style={{ color: "rgba(255,255,255,.55)" }}>{s.label}</span>
+              { icon: "🎬", label: t.loginFeatureVideoLabel,    desc: t.loginFeatureVideoDesc    },
+              { icon: "🎙️", label: t.loginFeatureAudioLabel,   desc: t.loginFeatureAudioDesc   },
+              { icon: "📋", label: t.loginFeatureArticlesLabel, desc: t.loginFeatureArticlesDesc },
+              { icon: "🖼️", label: t.loginFeatureGalleryLabel,  desc: t.loginFeatureGalleryDesc  },
+            ].map(f => (
+              <div key={f.label} className="rounded-xl p-3"
+                style={{ background: "rgba(255,255,255,.06)", border: "1px solid rgba(200,168,75,.15)" }}>
+                <div className="text-xl mb-1">{f.icon}</div>
+                <p className="text-white text-xs font-bold leading-snug" style={{ fontFamily: "'Noto Kufi Arabic',sans-serif" }}>{f.label}</p>
+                <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,.50)", lineHeight: 1.5 }}>{f.desc}</p>
               </div>
             ))}
           </div>
