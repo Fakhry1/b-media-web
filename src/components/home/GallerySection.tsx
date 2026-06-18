@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { fetchPublicContents, fetchPublicDetail, fetchSignedUrl, PublicItem } from "@/lib/public";
+import { useLang } from "@/lib/LangContext";
 
 type GalleryItem = PublicItem & { imageUrl: string | null };
 
 export default function HomeGallerySection() {
+  const { t } = useLang();
   const [items, setItems]     = useState<GalleryItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -44,7 +46,7 @@ export default function HomeGallerySection() {
   return (
     <section style={{ paddingBlock: "48px 24px" }}>
       <div className="container-main">
-        <SectionHeader title="معرض الصور" label="مرئيات" href="/gallery" linkText="شاهد المعرض" icon="🖼️" />
+        <SectionHeader title={t.gallerySectionTitle} label={t.gallerySectionLabel} href="/gallery" linkText={t.gallerySectionLink} icon="🖼️" />
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(240px,1fr))", gap: 12 }}>
           {items.map(item => <GalleryCard key={item.id} item={item} />)}
         </div>

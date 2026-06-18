@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { login, saveSession } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
+import { useLang } from "@/lib/LangContext";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { t } = useLang();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
@@ -25,14 +27,14 @@ export default function LoginPage() {
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 401) {
-          setError("البريد الإلكتروني أو كلمة المرور غير صحيحة");
+          setError(t.wrongCredentials);
         } else if (err.status === 429) {
-          setError("تم تجاوز عدد المحاولات المسموح بها. يرجى الانتظار قبل المحاولة مجدداً");
+          setError(t.tooManyAttempts);
         } else {
-          setError(err.message || "حدث خطأ غير متوقع");
+          setError(err.message || t.unexpectedError);
         }
       } else {
-        setError("تعذّر الاتصال بالخادم. تحقق من اتصالك بالإنترنت");
+        setError(t.serverError);
       }
     } finally {
       setLoading(false);
@@ -61,10 +63,14 @@ export default function LoginPage() {
             <p className="text-white font-bold text-lg leading-loose" style={{ fontFamily: "'Scheherazade New',serif" }}>
               وَذَكِّرْ فَإِنَّ الذِّكْرَىٰ تَنفَعُ الْمُؤْمِنِينَ
             </p>
-            <p className="text-xs mt-3 font-medium" style={{ color: "var(--gold)" }}>سورة الذاريات · آية ٥٥</p>
+            <p className="text-xs mt-3 font-medium" style={{ color: "var(--gold)" }}>{t.loginQuranRef}</p>
           </div>
           <div className="flex gap-6 flex-wrap">
-            {[{ val: "+1,200", label: "محتوى مرئي" }, { val: "+850", label: "ملف صوتي" }, { val: "120K", label: "متابع نشِط" }].map(s => (
+            {[
+              { val: "+1,200", label: t.loginStatVisual },
+              { val: "+850",   label: t.loginStatAudio },
+              { val: "120K",   label: t.loginStatFollowers },
+            ].map(s => (
               <div key={s.label}>
                 <b className="block font-extrabold" style={{ color: "var(--gold)", fontFamily: "'Noto Kufi Arabic',sans-serif", fontSize: "20px" }}>{s.val}</b>
                 <span className="text-xs" style={{ color: "rgba(255,255,255,.55)" }}>{s.label}</span>
@@ -86,9 +92,9 @@ export default function LoginPage() {
           </div>
 
           <h1 className="text-2xl font-extrabold mb-1" style={{ fontFamily: "'Noto Kufi Arabic',sans-serif", color: "var(--ink)" }}>
-            تسجيل الدخول
+            {t.loginTitle}
           </h1>
-          <p className="text-sm mb-8" style={{ color: "var(--muted)" }}>أدخل بياناتك للوصول إلى حسابك</p>
+          <p className="text-sm mb-8" style={{ color: "var(--muted)" }}>{t.loginSubtitle}</p>
 
           {error && (
             <div className="mb-5 px-4 py-3 rounded-xl text-sm font-medium"
@@ -99,7 +105,7 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-5">
             <div>
-              <label className="block text-sm font-semibold mb-2" style={{ color: "var(--ink-2)" }}>البريد الإلكتروني</label>
+              <label className="block text-sm font-semibold mb-2" style={{ color: "var(--ink-2)" }}>{t.email}</label>
               <input
                 type="email" required value={email} onChange={e => setEmail(e.target.value)}
                 placeholder="example@domain.com"
@@ -112,8 +118,8 @@ export default function LoginPage() {
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-semibold" style={{ color: "var(--ink-2)" }}>كلمة المرور</label>
-                <a href="#" className="text-xs font-medium" style={{ color: "var(--forest)" }}>نسيت كلمة المرور؟</a>
+                <label className="text-sm font-semibold" style={{ color: "var(--ink-2)" }}>{t.password}</label>
+                <a href="#" className="text-xs font-medium" style={{ color: "var(--forest)" }}>{t.forgotPass}</a>
               </div>
               <div className="relative">
                 <input
@@ -126,14 +132,14 @@ export default function LoginPage() {
                 />
                 <button type="button" onClick={() => setShowPass(!showPass)}
                   className="absolute left-3 top-1/2 -translate-y-1/2 text-xs px-1" style={{ color: "var(--muted)" }}>
-                  {showPass ? "إخفاء" : "إظهار"}
+                  {showPass ? t.hide : t.show}
                 </button>
               </div>
             </div>
 
             <label className="flex items-center gap-2 cursor-pointer select-none">
               <input type="checkbox" className="w-4 h-4 rounded" />
-              <span className="text-sm" style={{ color: "var(--muted)" }}>تذكّرني</span>
+              <span className="text-sm" style={{ color: "var(--muted)" }}>{t.remember}</span>
             </label>
 
             <button type="submit" disabled={loading}
@@ -144,13 +150,13 @@ export default function LoginPage() {
                 boxShadow: loading ? "none" : "0 8px 24px rgba(11,35,24,.22)",
                 cursor: loading ? "not-allowed" : "pointer",
               }}>
-              {loading ? "جارٍ التحقق..." : "دخول"}
+              {loading ? t.loggingIn : t.loginButton}
             </button>
           </form>
 
           <p className="text-center text-sm mt-6" style={{ color: "var(--muted)" }}>
-            ليس لديك حساب؟{" "}
-            <Link href="/register" className="font-semibold" style={{ color: "var(--forest)" }}>سجّل مجاناً</Link>
+            {t.noAccount}{" "}
+            <Link href="/register" className="font-semibold" style={{ color: "var(--forest)" }}>{t.registerFree}</Link>
           </p>
         </div>
       </div>

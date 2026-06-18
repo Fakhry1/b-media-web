@@ -53,9 +53,9 @@ export default function Header() {
       <div style={{ background: "linear-gradient(90deg,var(--forest),#1A4332)", color: "var(--gold-pale)" }}
         className="text-xs font-medium py-2 text-center">
         {user ? (
-          <>👋 {lang === "ar" ? "مرحباً،" : "Welcome,"} <span style={{ color: "var(--gold)", fontWeight: 700 }}>{displayName}</span> — {lang === "ar" ? "أهلاً بك في BMedia" : "Welcome to BMedia"}</>
+          <>👋 {t.welcomeGreeting} <span style={{ color: "var(--gold)", fontWeight: 700 }}>{displayName}</span> — {t.welcomeToBMedia}</>
         ) : (
-          <>🌙 {lang === "ar" ? "أحدث محتوى:" : "Latest content:"} <span style={{ color: "var(--gold)", fontWeight: 700 }}>{lang === "ar" ? "تفسير سورة يوسف" : "Tafsir Surah Yusuf"}</span> — {lang === "ar" ? "متاح الآن" : "Now available"}</>
+          <>🌙 {t.latestContent} <span style={{ color: "var(--gold)", fontWeight: 700 }}>{lang === "ar" ? "تفسير سورة يوسف" : "Tafsir Surah Yusuf"}</span> — {t.nowAvailable}</>
         )}
       </div>
 
@@ -71,7 +71,7 @@ export default function Header() {
                 style={{ background: "linear-gradient(135deg,var(--gold),var(--gold-2))", color: "var(--forest)" }}>ب</div>
               <div>
                 <div className="text-lg font-bold leading-none" style={{ color: "var(--forest)", fontFamily: "'Noto Kufi Arabic',sans-serif" }}>BMedia</div>
-                <div className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>{lang === "ar" ? "منصة المحتوى الرقمي" : "Digital Media Platform"}</div>
+                <div className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>{t.digitalMediaPlatform}</div>
               </div>
             </a>
 

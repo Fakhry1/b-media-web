@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { fetchPublicContents, PublicItem } from "@/lib/public";
+import { useLang } from "@/lib/LangContext";
 
 export default function HomeArticlesSection() {
+  const { t } = useLang();
   const [items, setItems]     = useState<PublicItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -22,7 +24,7 @@ export default function HomeArticlesSection() {
   return (
     <section style={{ paddingBlock: "48px 24px" }}>
       <div className="container-main">
-        <SectionHeader title="أحدث المحتويات" label="اطلاع ومعرفة" href="/articles" linkText="اقرأ الكل" icon="📖" />
+        <SectionHeader title={t.articlesSectionTitle} label={t.articlesSectionLabel} href="/articles" linkText={t.articlesSectionLink} icon="📖" />
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 18 }}>
           {items.map((item, idx) => <ArticleCard key={item.id} item={item} index={idx} />)}
         </div>
@@ -100,7 +102,7 @@ function ArticleCard({ item, index }: { item: PublicItem; index: number }) {
           marginTop: "auto", paddingTop: 12, borderTop: "1px solid var(--line)",
           display: "flex", justifyContent: "flex-end",
         }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--forest)" }}>اقرأ المزيد ←</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--forest)" }}>{t.readMore} ←</span>
         </div>
       </div>
     </a>

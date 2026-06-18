@@ -7,6 +7,7 @@ import {
   fetchPublicContents, fetchPublicCategories, fetchPublicDetail, fetchSignedUrl,
   downloadBlob, type PublicItem, type PubCategory,
 } from "@/lib/public";
+import { useLang } from "@/lib/LangContext";
 
 const PAGE_SIZE = 16;
 const CATEGORY_NAME = "الصور";
@@ -70,8 +71,7 @@ function ImageCard({ item, onClick }: { item: PublicItem; onClick: () => void })
           )}
         </div>
         {item.isFeatured && (
-          <div style={{ position: "absolute", top: 10, right: 10, background: "var(--gold)",
-            color: "var(--forest)", fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20 }}>مميز</div>
+          <FeaturedBadge />
         )}
       </div>
       <div style={{ padding: "12px 14px" }}>
@@ -92,7 +92,16 @@ function ImageCard({ item, onClick }: { item: PublicItem; onClick: () => void })
   );
 }
 
+function FeaturedBadge() {
+  const { t } = useLang();
+  return (
+    <div style={{ position: "absolute", top: 10, right: 10, background: "var(--gold)",
+      color: "var(--forest)", fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20 }}>{t.featured}</div>
+  );
+}
+
 function ImageLightbox({ item, onClose }: { item: PublicItem; onClose: () => void }) {
+  const { t } = useLang();
   const [loading, setLoading] = useState(true);
   const [url, setUrl] = useState<string | null>(null);
   const [err, setErr] = useState(false);
@@ -149,11 +158,11 @@ function ImageLightbox({ item, onClose }: { item: PublicItem; onClose: () => voi
                 alignItems: "center", justifyContent: "center", gap: 12 }}>
                 <div style={{ width: 40, height: 40, borderRadius: "50%", border: "3px solid var(--gold)",
                   borderTopColor: "transparent", animation: "spin 1s linear infinite" }} />
-                <p style={{ color: "var(--muted)", fontSize: 14 }}>جارٍ التحميل...</p>
+                <p style={{ color: "var(--muted)", fontSize: 14 }}>{t.loading}</p>
               </div>
             </div>
           )}
-          {err && !loading && <p style={{ textAlign: "center", color: "var(--muted)", padding: "40px 0" }}>تعذّر تحميل الصورة</p>}
+          {err && !loading && <p style={{ textAlign: "center", color: "var(--muted)", padding: "40px 0" }}>{t.loadingError}</p>}
           {url && !loading && (
             <div style={{ textAlign: "center" }}>
               <img src={url} alt={item.title} style={{ maxWidth: "100%", borderRadius: 12, display: "block", margin: "0 auto" }} />
@@ -166,7 +175,7 @@ function ImageLightbox({ item, onClose }: { item: PublicItem; onClose: () => voi
                   padding: "8px 20px", borderRadius: 10, border: "none",
                   background: downloading ? "var(--line)" : "var(--forest)", color: downloading ? "var(--muted)" : "#fff",
                   fontSize: 13, fontWeight: 600, cursor: downloading ? "default" : "pointer" }}>
-                {downloading ? "جارٍ التحميل..." : "⬇ تحميل الصورة"}
+                {downloading ? t.downloading : t.downloadImage}
               </button>
             </div>
           )}
@@ -178,6 +187,7 @@ function ImageLightbox({ item, onClose }: { item: PublicItem; onClose: () => voi
 }
 
 function Pagination({ page, totalPages, setPage }: { page: number; totalPages: number; setPage: (p: number) => void }) {
+  const { t } = useLang();
   if (totalPages <= 1) return null;
   const pages = Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
     if (totalPages <= 7) return i + 1;
@@ -190,7 +200,7 @@ function Pagination({ page, totalPages, setPage }: { page: number; totalPages: n
       <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1}
         style={{ padding: "8px 16px", borderRadius: 10, border: "1px solid var(--line)",
           background: "var(--surface)", color: page === 1 ? "var(--muted-2)" : "var(--ink)",
-          cursor: page === 1 ? "default" : "pointer", fontSize: 13 }}>السابق</button>
+          cursor: page === 1 ? "default" : "pointer", fontSize: 13 }}>{t.prev}</button>
       {pages.map(p => (
         <button key={p} onClick={() => setPage(p)}
           style={{ width: 38, height: 38, borderRadius: 10, border: "1px solid",
@@ -202,12 +212,13 @@ function Pagination({ page, totalPages, setPage }: { page: number; totalPages: n
       <button onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page === totalPages}
         style={{ padding: "8px 16px", borderRadius: 10, border: "1px solid var(--line)",
           background: "var(--surface)", color: page === totalPages ? "var(--muted-2)" : "var(--ink)",
-          cursor: page === totalPages ? "default" : "pointer", fontSize: 13 }}>التالي</button>
+          cursor: page === totalPages ? "default" : "pointer", fontSize: 13 }}>{t.next}</button>
     </div>
   );
 }
 
 export default function GalleryPage() {
+  const { t } = useLang();
   const [pageCategory, setPageCategory] = useState<PubCategory | null>(null);
   const [subId, setSubId] = useState<string | null>(null);
   const [items, setItems] = useState<PublicItem[]>([]);
@@ -255,7 +266,7 @@ export default function GalleryPage() {
             <h1 style={{ fontSize: 26, fontWeight: 800, color: "var(--ink)", fontFamily: "'Noto Kufi Arabic',sans-serif" }}>
               🖼️ {CATEGORY_NAME}
             </h1>
-            <p style={{ color: "var(--muted)", marginTop: 4, fontSize: 14 }}>استعرض مجموعة الصور</p>
+            <p style={{ color: "var(--muted)", marginTop: 4, fontSize: 14 }}>{t.browseAllImages}</p>
 
             {/* Subcategory tabs */}
             <div style={{ display: "flex", gap: 8, overflowX: "auto", padding: "16px 0 0", scrollbarWidth: "none" }}>
@@ -264,7 +275,7 @@ export default function GalleryPage() {
                   borderColor: subId === null ? "var(--gold)" : "var(--line)",
                   background: subId === null ? "var(--gold)" : "transparent",
                   color: subId === null ? "var(--forest)" : "var(--ink)",
-                  fontWeight: 600, fontSize: 13, cursor: "pointer" }}>الكل</button>
+                  fontWeight: 600, fontSize: 13, cursor: "pointer" }}>{t.all}</button>
               {(pageCategory?.subcategories ?? []).map(sub => (
                 <button key={sub.id} onClick={() => handleSub(sub.id)}
                   style={{ flexShrink: 0, padding: "7px 20px", borderRadius: 999, border: "1px solid",
@@ -278,13 +289,13 @@ export default function GalleryPage() {
         </div>
 
         <div className="container-main" style={{ padding: "32px 0 48px" }}>
-          {error && <p style={{ textAlign: "center", padding: 40, color: "var(--muted)" }}>حدث خطأ أثناء التحميل</p>}
+          {error && <p style={{ textAlign: "center", padding: 40, color: "var(--muted)" }}>{t.loadingError}</p>}
           {loading ? (
             <div className="ggrid">
               {Array.from({ length: PAGE_SIZE }).map((_, i) => <SkeletonCard key={i} />)}
             </div>
           ) : !error && items.length === 0 ? (
-            <p style={{ textAlign: "center", padding: 60, color: "var(--muted)" }}>لا توجد صور في هذا القسم حالياً</p>
+            <p style={{ textAlign: "center", padding: 60, color: "var(--muted)" }}>{t.noImages}</p>
           ) : !error && (
             <div className="ggrid">
               {items.map(item => (

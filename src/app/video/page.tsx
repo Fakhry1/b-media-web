@@ -7,6 +7,7 @@ import {
   fetchPublicContents, fetchPublicCategories, fetchPublicDetail, fetchSignedUrl,
   downloadBlob, type PublicItem, type PubCategory,
 } from "@/lib/public";
+import { useLang } from "@/lib/LangContext";
 
 const PAGE_SIZE = 10;
 const CATEGORY_NAME = "المشاهدة";
@@ -15,6 +16,14 @@ const MEDIA_TYPE = 1; // Video
 function formatDate(iso: string | null) {
   if (!iso) return "";
   return new Date(iso).toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" });
+}
+
+function FeaturedBadge() {
+  const { t } = useLang();
+  return (
+    <div style={{ position: "absolute", top: 12, right: 12, background: "var(--gold)", color: "var(--forest)",
+      fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20 }}>{t.featured}</div>
+  );
 }
 
 function SkeletonCard() {
@@ -56,10 +65,7 @@ function VideoCard({ item, onClick, featured }: { item: PublicItem; onClick: () 
             </svg>
           </div>
         </div>
-        {item.isFeatured && (
-          <div style={{ position: "absolute", top: 12, right: 12, background: "var(--gold)", color: "var(--forest)",
-            fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20 }}>مميز</div>
-        )}
+        {item.isFeatured && <FeaturedBadge />}
       </div>
       <div className="p-4">
         <h3 style={{ color: "var(--ink)", fontSize: featured ? 18 : 15, fontWeight: 700, lineHeight: 1.4, marginBottom: 6,
@@ -82,6 +88,7 @@ function VideoCard({ item, onClick, featured }: { item: PublicItem; onClick: () 
 }
 
 function VideoModal({ item, onClose }: { item: PublicItem; onClose: () => void }) {
+  const { t } = useLang();
   const [loading, setLoading] = useState(true);
   const [url, setUrl] = useState<string | null>(null);
   const [err, setErr] = useState(false);
@@ -127,15 +134,15 @@ function VideoModal({ item, onClose }: { item: PublicItem; onClose: () => void }
                 alignItems: "center", justifyContent: "center", gap: 12 }}>
                 <div style={{ width: 40, height: 40, borderRadius: "50%", border: "3px solid var(--gold)",
                   borderTopColor: "transparent", animation: "spin 1s linear infinite" }} />
-                <p style={{ color: "var(--muted)", fontSize: 14 }}>جارٍ التحميل...</p>
+                <p style={{ color: "var(--muted)", fontSize: 14 }}>{t.loading}</p>
               </div>
             </div>
           )}
-          {err && !loading && <p style={{ textAlign: "center", color: "var(--muted)", padding: "40px 0" }}>تعذّر تحميل الفيديو</p>}
+          {err && !loading && <p style={{ textAlign: "center", color: "var(--muted)", padding: "40px 0" }}>{t.videoLoadError}</p>}
           {url && !loading && (
             <>
               <video controls autoPlay style={{ width: "100%", borderRadius: 12, background: "#000" }} src={url}>
-                متصفحك لا يدعم الفيديو.
+                {t.browserNoVideo}
               </video>
               <div style={{ textAlign: "center", marginTop: 14 }}>
                 <button disabled={downloading}
@@ -146,7 +153,7 @@ function VideoModal({ item, onClose }: { item: PublicItem; onClose: () => void }
                   style={{ padding: "8px 22px", borderRadius: 10, border: "none",
                     background: downloading ? "var(--line)" : "var(--forest)", color: "#fff",
                     fontSize: 13, fontWeight: 600, cursor: downloading ? "default" : "pointer" }}>
-                  {downloading ? "جارٍ التحميل..." : "⬇ تحميل الفيديو"}
+                  {downloading ? t.downloading : t.downloadVideo}
                 </button>
               </div>
             </>
@@ -159,6 +166,7 @@ function VideoModal({ item, onClose }: { item: PublicItem; onClose: () => void }
 }
 
 function Pagination({ page, totalPages, setPage }: { page: number; totalPages: number; setPage: (p: number) => void }) {
+  const { t } = useLang();
   if (totalPages <= 1) return null;
   const pages = Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
     if (totalPages <= 7) return i + 1;
@@ -171,7 +179,7 @@ function Pagination({ page, totalPages, setPage }: { page: number; totalPages: n
       <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1}
         style={{ padding: "8px 16px", borderRadius: 10, border: "1px solid var(--line)",
           background: "var(--surface)", color: page === 1 ? "var(--muted-2)" : "var(--ink)",
-          cursor: page === 1 ? "default" : "pointer", fontSize: 13 }}>السابق</button>
+          cursor: page === 1 ? "default" : "pointer", fontSize: 13 }}>{t.prev}</button>
       {pages.map(p => (
         <button key={p} onClick={() => setPage(p)}
           style={{ width: 38, height: 38, borderRadius: 10, border: "1px solid",
@@ -183,12 +191,13 @@ function Pagination({ page, totalPages, setPage }: { page: number; totalPages: n
       <button onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page === totalPages}
         style={{ padding: "8px 16px", borderRadius: 10, border: "1px solid var(--line)",
           background: "var(--surface)", color: page === totalPages ? "var(--muted-2)" : "var(--ink)",
-          cursor: page === totalPages ? "default" : "pointer", fontSize: 13 }}>التالي</button>
+          cursor: page === totalPages ? "default" : "pointer", fontSize: 13 }}>{t.next}</button>
     </div>
   );
 }
 
 export default function VideoPage() {
+  const { t } = useLang();
   const [pageCategory, setPageCategory] = useState<PubCategory | null>(null);
   const [subId, setSubId] = useState<string | null>(null);
   const [items, setItems] = useState<PublicItem[]>([]);
@@ -243,7 +252,7 @@ export default function VideoPage() {
             <h1 style={{ fontSize: 26, fontWeight: 800, color: "var(--ink)", fontFamily: "'Noto Kufi Arabic',sans-serif" }}>
               🎬 {CATEGORY_NAME}
             </h1>
-            <p style={{ color: "var(--muted)", marginTop: 4, fontSize: 14 }}>استعرض جميع مقاطع الفيديو</p>
+            <p style={{ color: "var(--muted)", marginTop: 4, fontSize: 14 }}>{t.browseAllVideos}</p>
 
             {/* Subcategory tabs */}
             <div style={{ display: "flex", gap: 8, overflowX: "auto", padding: "16px 0 0", scrollbarWidth: "none" }}>
@@ -253,7 +262,7 @@ export default function VideoPage() {
                   background: subId === null ? "var(--gold)" : "transparent",
                   color: subId === null ? "var(--forest)" : "var(--ink)",
                   fontWeight: 600, fontSize: 13, cursor: "pointer", transition: "all .15s" }}>
-                الكل
+                {t.all}
               </button>
               {(pageCategory?.subcategories ?? []).map(sub => (
                 <button key={sub.id} onClick={() => handleSub(sub.id)}
@@ -271,11 +280,11 @@ export default function VideoPage() {
 
         {/* Content */}
         <div className="container-main" style={{ padding: "32px 0 48px" }}>
-          {error && <p style={{ textAlign: "center", padding: 40, color: "var(--muted)" }}>حدث خطأ أثناء التحميل</p>}
+          {error && <p style={{ textAlign: "center", padding: 40, color: "var(--muted)" }}>{t.loadingError}</p>}
           {loading ? (
             <div className="vgrid">{Array.from({ length: PAGE_SIZE }).map((_, i) => <SkeletonCard key={i} />)}</div>
           ) : !error && items.length === 0 ? (
-            <p style={{ textAlign: "center", padding: 60, color: "var(--muted)" }}>لا توجد مقاطع فيديو في هذا القسم حالياً</p>
+            <p style={{ textAlign: "center", padding: 60, color: "var(--muted)" }}>{t.noVideos}</p>
           ) : !error && (
             <>
               {featuredItem && <div style={{ marginBottom: 28 }}><VideoCard item={featuredItem} onClick={() => setActiveModal(featuredItem.id)} featured /></div>}

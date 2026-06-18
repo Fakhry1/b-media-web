@@ -1,16 +1,19 @@
 "use client";
 
+import { useLang } from "@/lib/LangContext";
 import HeroBannerSlider from "./HeroBannerSlider";
 
-const NAV_ITEMS = [
-  { icon: "🎬", label: "مشاهدة",   sub: "فيديوهات ومحاضرات",  href: "/video",      color: "rgba(26,67,50,.12)"   },
-  { icon: "🖼️", label: "صور",      sub: "معرض الصور",          href: "/gallery",    color: "rgba(200,168,75,.14)" },
-  { icon: "🎙️", label: "سماع",    sub: "تسجيلات وأناشيد",    href: "/audio",      color: "rgba(26,67,50,.10)"   },
-  { icon: "📖", label: "اطلاع",    sub: "مقالات ومحتوى",       href: "/articles",   color: "rgba(200,168,75,.12)" },
-  { icon: "📂", label: "التصنيفات", sub: "تصفح حسب القسم",     href: "/categories", color: "rgba(11,35,24,.08)"   },
-];
-
 export default function HeroSection() {
+  const { t } = useLang();
+
+  const NAV_ITEMS = [
+    { icon: "🎬", label: t.heroNavVideo,      sub: t.heroNavVideoSub,      href: "/video",      color: "rgba(26,67,50,.12)"   },
+    { icon: "🖼️", label: t.heroNavGallery,    sub: t.heroNavGallerySub,    href: "/gallery",    color: "rgba(200,168,75,.14)" },
+    { icon: "🎙️", label: t.heroNavAudio,      sub: t.heroNavAudioSub,      href: "/audio",      color: "rgba(26,67,50,.10)"   },
+    { icon: "📖", label: t.heroNavArticles,   sub: t.heroNavArticlesSub,   href: "/articles",   color: "rgba(200,168,75,.12)" },
+    { icon: "📂", label: t.heroNavCategories, sub: t.heroNavCategoriesSub, href: "/categories", color: "rgba(11,35,24,.08)"   },
+  ];
+
   return (
     <section style={{ paddingTop: 24, paddingBottom: 8 }}>
       <div className="container-main">
@@ -19,7 +22,7 @@ export default function HeroSection() {
         <HeroBannerSlider />
 
         {/* ── Quick-nav pills ── */}
-        <nav aria-label="تصفح المحتوى" style={{ marginTop: 20, paddingBottom: 4 }}>
+        <nav aria-label={t.browseContentAria} style={{ marginTop: 20, paddingBottom: 4 }}>
           <div style={{
             display: "flex", gap: 12,
             overflowX: "auto", paddingBottom: 4,

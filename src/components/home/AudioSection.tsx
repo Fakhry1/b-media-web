@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { fetchPublicContents, PublicItem } from "@/lib/public";
+import { useLang } from "@/lib/LangContext";
 
 export default function HomeAudioSection() {
+  const { t } = useLang();
   const [items, setItems]     = useState<PublicItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -22,7 +24,7 @@ export default function HomeAudioSection() {
   return (
     <section style={{ paddingBlock: "48px 24px", background: "var(--surface-2)" }}>
       <div className="container-main">
-        <SectionHeader title="أحدث التسجيلات الصوتية" label="محتوى صوتي" href="/audio" linkText="استمع للكل" icon="🎙️" />
+        <SectionHeader title={t.audioSectionTitle} label={t.audioSectionLabel} href="/audio" linkText={t.audioSectionLink} icon="🎙️" />
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(240px,1fr))", gap: 16 }}>
           {items.map((item, idx) => <AudioCard key={item.id} item={item} index={idx} />)}
         </div>

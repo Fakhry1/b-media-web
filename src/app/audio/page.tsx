@@ -7,6 +7,7 @@ import {
   fetchPublicContents, fetchPublicCategories, fetchPublicDetail, fetchSignedUrl,
   downloadBlob, type PublicItem, type PubCategory,
 } from "@/lib/public";
+import { useLang } from "@/lib/LangContext";
 
 const PAGE_SIZE = 15;
 const CATEGORY_NAME = "السماع";
@@ -31,6 +32,7 @@ function SkeletonRow() {
 }
 
 function Pagination({ page, totalPages, setPage }: { page: number; totalPages: number; setPage: (p: number) => void }) {
+  const { t } = useLang();
   if (totalPages <= 1) return null;
   const pages = Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
     if (totalPages <= 7) return i + 1;
@@ -43,7 +45,7 @@ function Pagination({ page, totalPages, setPage }: { page: number; totalPages: n
       <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1}
         style={{ padding: "8px 16px", borderRadius: 10, border: "1px solid var(--line)",
           background: "var(--surface)", color: page === 1 ? "var(--muted-2)" : "var(--ink)",
-          cursor: page === 1 ? "default" : "pointer", fontSize: 13 }}>السابق</button>
+          cursor: page === 1 ? "default" : "pointer", fontSize: 13 }}>{t.prev}</button>
       {pages.map(p => (
         <button key={p} onClick={() => setPage(p)}
           style={{ width: 38, height: 38, borderRadius: 10, border: "1px solid",
@@ -55,12 +57,13 @@ function Pagination({ page, totalPages, setPage }: { page: number; totalPages: n
       <button onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page === totalPages}
         style={{ padding: "8px 16px", borderRadius: 10, border: "1px solid var(--line)",
           background: "var(--surface)", color: page === totalPages ? "var(--muted-2)" : "var(--ink)",
-          cursor: page === totalPages ? "default" : "pointer", fontSize: 13 }}>التالي</button>
+          cursor: page === totalPages ? "default" : "pointer", fontSize: 13 }}>{t.next}</button>
     </div>
   );
 }
 
 export default function AudioPage() {
+  const { t } = useLang();
   const [pageCategory, setPageCategory] = useState<PubCategory | null>(null);
   const [subId, setSubId] = useState<string | null>(null);
   const [items, setItems] = useState<PublicItem[]>([]);
@@ -175,14 +178,14 @@ export default function AudioPage() {
             <h1 style={{ fontSize: 26, fontWeight: 800, color: "var(--ink)", fontFamily: "'Noto Kufi Arabic',sans-serif" }}>
               🎙 {CATEGORY_NAME}
             </h1>
-            <p style={{ color: "var(--muted)", marginTop: 4, fontSize: 14 }}>استمع إلى المقاطع الصوتية</p>
+            <p style={{ color: "var(--muted)", marginTop: 4, fontSize: 14 }}>{t.browseAllAudio}</p>
             <div style={{ display: "flex", gap: 8, overflowX: "auto", padding: "16px 0 0", scrollbarWidth: "none" }}>
               <button onClick={() => handleSub(null)}
                 style={{ flexShrink: 0, padding: "7px 20px", borderRadius: 999, border: "1px solid",
                   borderColor: subId === null ? "var(--gold)" : "var(--line)",
                   background: subId === null ? "var(--gold)" : "transparent",
                   color: subId === null ? "var(--forest)" : "var(--ink)",
-                  fontWeight: 600, fontSize: 13, cursor: "pointer" }}>الكل</button>
+                  fontWeight: 600, fontSize: 13, cursor: "pointer" }}>{t.all}</button>
               {(pageCategory?.subcategories ?? []).map(sub => (
                 <button key={sub.id} onClick={() => handleSub(sub.id)}
                   style={{ flexShrink: 0, padding: "7px 20px", borderRadius: 999, border: "1px solid",
@@ -197,11 +200,11 @@ export default function AudioPage() {
 
         {/* List */}
         <div className="container-main" style={{ padding: "28px 0 48px" }}>
-          {error && <p style={{ textAlign: "center", padding: 40, color: "var(--muted)" }}>حدث خطأ أثناء التحميل</p>}
+          {error && <p style={{ textAlign: "center", padding: 40, color: "var(--muted)" }}>{t.loadingError}</p>}
           {loading ? (
             Array.from({ length: PAGE_SIZE }).map((_, i) => <SkeletonRow key={i} />)
           ) : !error && items.length === 0 ? (
-            <p style={{ textAlign: "center", padding: 60, color: "var(--muted)" }}>لا توجد مقاطع صوتية في هذا القسم حالياً</p>
+            <p style={{ textAlign: "center", padding: 60, color: "var(--muted)" }}>{t.noAudio}</p>
           ) : !error && (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {items.map((item, idx) => {
@@ -247,7 +250,7 @@ export default function AudioPage() {
                     </div>
                     {item.isFeatured && (
                       <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20,
-                        background: "rgba(200,168,75,.15)", color: "var(--forest)", fontWeight: 700, flexShrink: 0 }}>مميز</span>
+                        background: "rgba(200,168,75,.15)", color: "var(--forest)", fontWeight: 700, flexShrink: 0 }}>{t.featured}</span>
                     )}
                   </div>
                 );
@@ -308,7 +311,7 @@ export default function AudioPage() {
                     background: downloadingAudio ? "var(--line)" : "var(--surface-2)",
                     cursor: downloadingAudio ? "default" : "pointer", fontSize: 12,
                     color: "var(--ink)", fontWeight: 600, whiteSpace: "nowrap" }}>
-                  {downloadingAudio ? "..." : "⬇ تحميل"}
+                  {downloadingAudio ? "..." : t.downloadAudio}
                 </button>
               )}
             </div>

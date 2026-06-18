@@ -7,6 +7,7 @@ import {
   fetchPublicContents, fetchPublicCategories, fetchPublicDetail, fetchSignedUrl,
   downloadBlob, type PublicItem, type PubCategory,
 } from "@/lib/public";
+import { useLang } from "@/lib/LangContext";
 
 const PAGE_SIZE = 12;
 const CATEGORY_NAME = "الاطلاع";
@@ -35,6 +36,7 @@ function ArticleCard({ item, large, onClick, onDownload, isDownloading }: {
   item: PublicItem; large?: boolean; onClick: () => void;
   onDownload: (e: React.MouseEvent) => void; isDownloading: boolean;
 }) {
+  const { t } = useLang();
   const [hover, setHover] = useState(false);
   const palette = ["#3B82F6", "#8B5CF6", "#10B981", "#F59E0B", "#EC4899", "#06B6D4"];
   const color = palette[item.title.charCodeAt(0) % palette.length];
@@ -64,7 +66,7 @@ function ArticleCard({ item, large, onClick, onDownload, isDownloading }: {
           {item.publishedAt && <span style={{ fontSize: 11, color: "var(--muted-2)" }}>{formatDate(item.publishedAt)}</span>}
           {item.isFeatured && (
             <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20,
-              background: "rgba(200,168,75,.15)", color: "var(--forest)", fontWeight: 700 }}>مميز</span>
+              background: "rgba(200,168,75,.15)", color: "var(--forest)", fontWeight: 700 }}>{t.featured}</span>
           )}
           <span style={{ marginInlineStart: "auto", fontSize: 12, color, fontWeight: 600 }}>📋 PDF</span>
           <button disabled={isDownloading} onClick={onDownload}
@@ -72,7 +74,7 @@ function ArticleCard({ item, large, onClick, onDownload, isDownloading }: {
               background: isDownloading ? "var(--line)" : `${color}12`,
               color: isDownloading ? "var(--muted)" : color,
               fontSize: 12, fontWeight: 600, cursor: isDownloading ? "default" : "pointer" }}>
-            {isDownloading ? "..." : "⬇ تحميل"}
+            {isDownloading ? "..." : t.downloadAudio}
           </button>
         </div>
       </div>
@@ -81,6 +83,7 @@ function ArticleCard({ item, large, onClick, onDownload, isDownloading }: {
 }
 
 function Pagination({ page, totalPages, setPage }: { page: number; totalPages: number; setPage: (p: number) => void }) {
+  const { t } = useLang();
   if (totalPages <= 1) return null;
   const pages = Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
     if (totalPages <= 7) return i + 1;
@@ -93,7 +96,7 @@ function Pagination({ page, totalPages, setPage }: { page: number; totalPages: n
       <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1}
         style={{ padding: "8px 16px", borderRadius: 10, border: "1px solid var(--line)",
           background: "var(--surface)", color: page === 1 ? "var(--muted-2)" : "var(--ink)",
-          cursor: page === 1 ? "default" : "pointer", fontSize: 13 }}>السابق</button>
+          cursor: page === 1 ? "default" : "pointer", fontSize: 13 }}>{t.prev}</button>
       {pages.map(p => (
         <button key={p} onClick={() => setPage(p)}
           style={{ width: 38, height: 38, borderRadius: 10, border: "1px solid",
@@ -105,12 +108,13 @@ function Pagination({ page, totalPages, setPage }: { page: number; totalPages: n
       <button onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page === totalPages}
         style={{ padding: "8px 16px", borderRadius: 10, border: "1px solid var(--line)",
           background: "var(--surface)", color: page === totalPages ? "var(--muted-2)" : "var(--ink)",
-          cursor: page === totalPages ? "default" : "pointer", fontSize: 13 }}>التالي</button>
+          cursor: page === totalPages ? "default" : "pointer", fontSize: 13 }}>{t.next}</button>
     </div>
   );
 }
 
 export default function ArticlesPage() {
+  const { t } = useLang();
   const [pageCategory, setPageCategory] = useState<PubCategory | null>(null);
   const [subId, setSubId] = useState<string | null>(null);
   const [lang, setLang] = useState<string | null>(null);
@@ -180,11 +184,11 @@ export default function ArticlesPage() {
                 <h1 style={{ fontSize: 26, fontWeight: 800, color: "var(--ink)", fontFamily: "'Noto Kufi Arabic',sans-serif" }}>
                   📋 {CATEGORY_NAME}
                 </h1>
-                <p style={{ color: "var(--muted)", marginTop: 4, fontSize: 14 }}>اطلع على الملفات والمستندات</p>
+                <p style={{ color: "var(--muted)", marginTop: 4, fontSize: 14 }}>{t.browseAllArticles}</p>
               </div>
               {/* Language chips */}
               <div style={{ display: "flex", gap: 6 }}>
-                {([{ key: null, label: "الكل" }, { key: "ar", label: "عربي" }, { key: "en", label: "English" }] as const).map(opt => (
+                {([{ key: null, label: t.all }, { key: "ar", label: t.langAr }, { key: "en", label: t.langEn }] as const).map(opt => (
                   <button key={opt.key ?? "all"} onClick={() => handleLang(opt.key ?? null)}
                     style={{ padding: "6px 14px", borderRadius: 999, border: "1px solid",
                       borderColor: lang === opt.key ? "var(--forest)" : "var(--line)",
@@ -201,7 +205,7 @@ export default function ArticlesPage() {
                   borderColor: subId === null ? "var(--gold)" : "var(--line)",
                   background: subId === null ? "var(--gold)" : "transparent",
                   color: subId === null ? "var(--forest)" : "var(--ink)",
-                  fontWeight: 600, fontSize: 13, cursor: "pointer" }}>الكل</button>
+                  fontWeight: 600, fontSize: 13, cursor: "pointer" }}>{t.all}</button>
               {(pageCategory?.subcategories ?? []).map(sub => (
                 <button key={sub.id} onClick={() => handleSub(sub.id)}
                   style={{ flexShrink: 0, padding: "7px 20px", borderRadius: 999, border: "1px solid",
@@ -215,7 +219,7 @@ export default function ArticlesPage() {
         </div>
 
         <div className="container-main" style={{ padding: "32px 0 48px" }}>
-          {error && <p style={{ textAlign: "center", padding: 40, color: "var(--muted)" }}>حدث خطأ أثناء التحميل</p>}
+          {error && <p style={{ textAlign: "center", padding: 40, color: "var(--muted)" }}>{t.loadingError}</p>}
           {loading ? (
             <div>
               <SkeletonCard large />
@@ -224,7 +228,7 @@ export default function ArticlesPage() {
               </div>
             </div>
           ) : !error && items.length === 0 ? (
-            <p style={{ textAlign: "center", padding: 60, color: "var(--muted)" }}>لا توجد مستندات في هذا القسم حالياً</p>
+            <p style={{ textAlign: "center", padding: 60, color: "var(--muted)" }}>{t.noArticles}</p>
           ) : !error && (
             <>
               {featured && (
