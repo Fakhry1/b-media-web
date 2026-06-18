@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { fetchPublicContents, PublicItem } from "@/lib/public";
+import { useLang } from "@/lib/LangContext";
 
 export default function HomeVideoSection() {
+  const { t } = useLang();
   const [items, setItems]     = useState<PublicItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -23,8 +25,8 @@ export default function HomeVideoSection() {
     <section style={{ paddingBlock: "48px 24px", background: "var(--surface-2)" }}>
       <div className="container-main">
         <SectionHeader
-          label="محتوى مرئي" title="أحدث الفيديوهات"
-          href="/video" linkText="شاهد الكل"
+          label={t.videoSectionLabel} title={t.videoSectionTitle}
+          href="/video" linkText={t.videoSectionLink}
           icon="🎬"
         />
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(240px,1fr))", gap: 16 }}>
