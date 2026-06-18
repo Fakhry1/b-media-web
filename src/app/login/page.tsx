@@ -9,7 +9,7 @@ import { useLang } from "@/lib/LangContext";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { t } = useLang();
+  const { t, lang, setLang } = useLang();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
@@ -42,7 +42,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex" style={{ background: "var(--bg)" }}>
+    <div className="min-h-screen flex" style={{ background: "var(--bg)", direction: lang === "ar" ? "rtl" : "ltr" }}>
 
       {/* Left decorative panel */}
       <div className="hidden lg:flex flex-col justify-between w-[420px] flex-shrink-0 p-10 relative overflow-hidden"
@@ -52,11 +52,19 @@ export default function LoginPage() {
           <div style={{ position: "absolute", bottom: "-10%", left: "-10%", width: "300px", height: "300px", borderRadius: "50%", background: "radial-gradient(circle,rgba(26,67,50,.50),transparent 65%)" }} />
         </div>
 
-        <Link href="/" className="relative z-10 inline-flex items-center gap-3">
+        <div className="relative z-10 flex items-center justify-between">
+          <Link href="/" className="inline-flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl font-extrabold"
             style={{ background: "linear-gradient(135deg,var(--gold),var(--gold-2))", color: "var(--forest)" }}>ب</div>
-          <span className="text-xl font-bold text-white" style={{ fontFamily: "'Noto Kufi Arabic',sans-serif" }}>BMedia</span>
-        </Link>
+            <span className="text-xl font-bold text-white" style={{ fontFamily: "'Noto Kufi Arabic',sans-serif" }}>BMedia</span>
+          </Link>
+          <button onClick={() => setLang(lang === "ar" ? "en" : "ar")}
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold transition-all"
+            style={{ background: "rgba(255,255,255,.08)", border: "1px solid rgba(200,168,75,.25)", color: "var(--gold)" }}
+            title="Switch language / تبديل اللغة">
+            {lang === "ar" ? "EN" : "ع"}
+          </button>
+        </div>
 
         <div className="relative z-10">
           <div className="rounded-2xl p-6 mb-6" style={{ background: "rgba(255,255,255,.06)", border: "1px solid rgba(200,168,75,.18)" }}>
@@ -87,11 +95,19 @@ export default function LoginPage() {
       <div className="flex-1 flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-md animate-fade-up">
 
-          {/* Mobile logo */}
-          <div className="flex lg:hidden items-center justify-center gap-3 mb-8">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl font-extrabold"
-              style={{ background: "linear-gradient(135deg,var(--gold),var(--gold-2))", color: "var(--forest)" }}>ب</div>
-            <span className="text-xl font-bold" style={{ fontFamily: "'Noto Kufi Arabic',sans-serif", color: "var(--ink)" }}>BMedia</span>
+          {/* Mobile header */}
+          <div className="flex lg:hidden items-center justify-between mb-8">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl font-extrabold"
+                style={{ background: "linear-gradient(135deg,var(--gold),var(--gold-2))", color: "var(--forest)" }}>ب</div>
+              <span className="text-xl font-bold" style={{ fontFamily: "'Noto Kufi Arabic',sans-serif", color: "var(--ink)" }}>BMedia</span>
+            </div>
+            <button onClick={() => setLang(lang === "ar" ? "en" : "ar")}
+              className="w-9 h-9 rounded-xl border flex items-center justify-center text-xs font-bold"
+              style={{ background: "var(--surface)", borderColor: "var(--line)", color: "var(--forest)" }}
+              title="Switch language / تبديل اللغة">
+              {lang === "ar" ? "EN" : "ع"}
+            </button>
           </div>
 
           <h1 className="text-2xl font-extrabold mb-1" style={{ fontFamily: "'Noto Kufi Arabic',sans-serif", color: "var(--ink)" }}>
