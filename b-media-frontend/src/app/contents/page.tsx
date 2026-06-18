@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { getContents, STATUS_LABEL_AR, STATUS_LABEL_EN, STATUS_COLOR, type ContentListItem, type ContentStatus } from "@/lib/contents";
 import { useLang } from "@/lib/LangContext";
+import { isLoggedIn } from "@/lib/auth";
+import { useDebounce } from "@/hooks/useDebounce";
 
 const STATUSES: ContentStatus[] = [
   "Draft","ContentReview","LanguageReview","MediaQualityReview","FinalApproval","Published","Rejected","Scheduled","Archived",
@@ -28,9 +31,16 @@ function formatDate(d: string) {
 
 export default function ContentsPage() {
   const { lang, t } = useLang();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoggedIn()) router.replace("/login");
+  }, [router]);
+
   const [items, setItems] = useState<ContentListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 400);
   const [status, setStatus] = useState<ContentStatus | "">("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -39,11 +49,11 @@ export default function ContentsPage() {
 
   const load = useCallback(() => {
     setLoading(true); setError("");
-    getContents({ page, pageSize: 12, search: search || undefined, status: status || undefined })
+    getContents({ page, pageSize: 12, search: debouncedSearch || undefined, status: status || undefined })
       .then(r => { setItems(r.items); setTotalPages(r.totalPages); setTotalCount(r.totalCount); })
       .catch(() => setError(lang === "ar" ? "تعذّر تحميل المحتوى" : "Failed to load content"))
       .finally(() => setLoading(false));
-  }, [page, search, status, lang]);
+  }, [page, debouncedSearch, status, lang]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -129,8 +139,8 @@ export default function ContentsPage() {
               </div>
             ) : (
               <>
-                <div className="rounded-2xl overflow-hidden border" style={{ borderColor: "var(--line)" }}>
-                  <table className="w-full text-sm">
+                <div className="rounded-2xl overflow-hidden border" style={{ borderColor: "var(--line)", overflowX: "auto" }}>
+                  <table className="w-full text-sm" style={{ minWidth: 520 }}>
                     <thead>
                       <tr style={{ background: "var(--surface-2)", borderBottom: "1px solid var(--line)" }}>
                         <th className="px-5 py-3 text-start font-bold" style={{ color: "var(--ink-2)" }}>

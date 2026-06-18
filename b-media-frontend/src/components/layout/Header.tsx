@@ -37,14 +37,21 @@ export default function Header() {
 
   const displayName = user ? (user.firstName || user.username) : null;
 
+  const categoryLinks = [
+    { href: "/articles", label: t.articles, icon: "📖" },
+    { href: "/audio",    label: t.audio,    icon: "🎧" },
+    { href: "/video",    label: t.video,    icon: "🎬" },
+    { href: "/gallery",  label: t.gallery,  icon: "🖼️" },
+  ];
+
   const navLinks = [
-    { href: "/", label: t.home },
-    { href: "/video", label: t.video },
-    { href: "/gallery", label: t.gallery },
-    { href: "/audio", label: t.audio },
-    { href: "/articles", label: t.articles },
-    { href: "/categories", label: t.categories },
-    { href: "/contents", label: t.contents },
+    { href: "/",           label: t.home,       icon: null },
+    { href: "/articles",   label: t.articles,   icon: "📖" },
+    { href: "/audio",      label: t.audio,      icon: "🎧" },
+    { href: "/video",      label: t.video,      icon: "🎬" },
+    { href: "/gallery",    label: t.gallery,    icon: "🖼️" },
+    { href: "/categories", label: t.categories, icon: null },
+    { href: "/contents",   label: t.contents,   icon: null },
   ];
 
   return (
@@ -76,8 +83,41 @@ export default function Header() {
             </a>
 
             {/* Desktop Nav */}
-            <nav className="hidden md:flex gap-1">
-              {navLinks.map((l) => (
+            <nav className="hidden md:flex items-center gap-1">
+              {/* Home */}
+              <a href="/" className="px-3 py-2 rounded-xl text-sm font-medium transition-all"
+                style={{ color: "var(--muted)" }}
+                onMouseEnter={e => (e.currentTarget.style.color = "var(--ink)")}
+                onMouseLeave={e => (e.currentTarget.style.color = "var(--muted)")}>
+                {t.home}
+              </a>
+
+              {/* Divider */}
+              <div style={{ width: 1, height: 20, background: "var(--line)", margin: "0 4px" }} />
+
+              {/* Category links — highlighted */}
+              {categoryLinks.map((l) => (
+                <a key={l.href} href={l.href}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-all"
+                  style={{ color: "var(--ink-2)" }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.color = "var(--forest)";
+                    e.currentTarget.style.background = "var(--surface-2)";
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.color = "var(--ink-2)";
+                    e.currentTarget.style.background = "transparent";
+                  }}>
+                  <span style={{ fontSize: 15 }}>{l.icon}</span>
+                  {l.label}
+                </a>
+              ))}
+
+              {/* Divider */}
+              <div style={{ width: 1, height: 20, background: "var(--line)", margin: "0 4px" }} />
+
+              {/* Secondary links */}
+              {[{ href: "/categories", label: t.categories }, { href: "/contents", label: t.contents }, { href: "/users", label: lang === "ar" ? "المستخدمون" : "Users" }].map((l) => (
                 <a key={l.href} href={l.href}
                   className="px-3 py-2 rounded-xl text-sm font-medium transition-all"
                   style={{ color: "var(--muted)" }}
@@ -189,7 +229,34 @@ export default function Header() {
           </button>
         </div>
         <nav className="flex-1 p-4 flex flex-col gap-1 overflow-y-auto">
-          {navLinks.map((l) => (
+          {/* Home */}
+          <a href="/" onClick={() => setDrawerOpen(false)}
+            className="px-4 py-3 rounded-xl text-sm font-medium" style={{ color: "var(--ink)" }}>
+            {t.home}
+          </a>
+
+          {/* Category label */}
+          <p className="px-4 pt-3 pb-1 text-xs font-bold uppercase tracking-wider" style={{ color: "var(--muted-2)" }}>
+            {lang === "ar" ? "التصنيفات" : "Categories"}
+          </p>
+
+          {/* Category links */}
+          {categoryLinks.map((l) => (
+            <a key={l.href} href={l.href} onClick={() => setDrawerOpen(false)}
+              className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all"
+              style={{ color: "var(--ink)" }}
+              onMouseEnter={e => (e.currentTarget.style.background = "var(--surface-2)")}
+              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+              <span style={{ fontSize: 20, width: 28, textAlign: "center" }}>{l.icon}</span>
+              {l.label}
+            </a>
+          ))}
+
+          {/* Divider */}
+          <div style={{ height: 1, background: "var(--line)", margin: "8px 0" }} />
+
+          {/* Secondary links */}
+          {[{ href: "/categories", label: t.categories }, { href: "/contents", label: t.contents }, { href: "/users", label: lang === "ar" ? "المستخدمون" : "Users" }].map((l) => (
             <a key={l.href} href={l.href} onClick={() => setDrawerOpen(false)}
               className="px-4 py-3 rounded-xl text-sm font-medium" style={{ color: "var(--ink)" }}>
               {l.label}

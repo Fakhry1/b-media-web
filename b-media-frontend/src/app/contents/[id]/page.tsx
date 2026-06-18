@@ -21,6 +21,7 @@ const LANGS = [
 // Media types the user can pick for upload
 const UPLOAD_MEDIA_TYPES = [
   { id: 1, key: "video",  icon: "🎬", labelAr: "فيديو",      labelEn: "Video",  accept: "video/*" },
+  { id: 2, key: "image",  icon: "🖼️", labelAr: "صورة",       labelEn: "Image",  accept: "image/*" },
   { id: 3, key: "audio",  icon: "🎙", labelAr: "صوت",        labelEn: "Audio",  accept: "audio/*" },
   { id: 5, key: "pdf",    icon: "📋", labelAr: "ملف PDF",    labelEn: "PDF",    accept: ".pdf" },
 ] as const;
@@ -74,7 +75,8 @@ function MediaPreview({ asset }: { asset: MediaAssetDto }) {
   const [fetching, setFetching] = useState(false);
   const [fetchErr, setFetchErr] = useState("");
 
-  const canPreview = asset.mediaType === "Video" || asset.mediaType === "Audio" || asset.mediaType === "PDF";
+  const canPreview = asset.mediaType === "Video" || asset.mediaType === "Audio"
+    || asset.mediaType === "PDF" || asset.mediaType === "Image";
   if (!canPreview) return null;
 
   function handleLoad() {
@@ -101,6 +103,7 @@ function MediaPreview({ asset }: { asset: MediaAssetDto }) {
             ? "⏳ جارٍ التحميل..."
             : asset.mediaType === "Video" ? "▶ تشغيل الفيديو"
             : asset.mediaType === "Audio" ? "🎙 تشغيل الصوت"
+            : asset.mediaType === "Image" ? "🖼️ عرض الصورة"
             : "📋 عرض PDF"}
         </button>
       </div>
@@ -109,35 +112,28 @@ function MediaPreview({ asset }: { asset: MediaAssetDto }) {
 
   if (asset.mediaType === "Video") {
     return (
-      <video
-        src={src}
-        controls
-        autoPlay
-        preload="auto"
-        className="w-full rounded-xl mt-3"
-        style={{ maxHeight: "280px", background: "#000", outline: "none" }}
-      />
+      <video src={src} controls autoPlay preload="auto" className="w-full rounded-xl mt-3"
+        style={{ maxHeight: "280px", background: "#000", outline: "none" }} />
     );
   }
   if (asset.mediaType === "Audio") {
     return (
-      <audio
-        src={src}
-        controls
-        autoPlay
-        className="w-full mt-3"
-        style={{ borderRadius: "12px" }}
-      />
+      <audio src={src} controls autoPlay className="w-full mt-3" style={{ borderRadius: "12px" }} />
+    );
+  }
+  if (asset.mediaType === "Image") {
+    return (
+      <div className="mt-3 rounded-xl overflow-hidden border"
+        style={{ borderColor: "var(--line)", background: "var(--surface-2)", textAlign: "center" }}>
+        <img src={src} alt={asset.originalFileName}
+          style={{ maxWidth: "100%", maxHeight: "360px", objectFit: "contain", display: "block", margin: "0 auto" }} />
+      </div>
     );
   }
   if (asset.mediaType === "PDF") {
     return (
       <div className="mt-3 rounded-xl overflow-hidden border" style={{ borderColor: "var(--line)", height: "340px" }}>
-        <iframe
-          src={`${src}#toolbar=1&navpanes=0`}
-          className="w-full h-full"
-          title={asset.originalFileName}
-        />
+        <iframe src={`${src}#toolbar=1&navpanes=0`} className="w-full h-full" title={asset.originalFileName} />
       </div>
     );
   }
@@ -214,7 +210,7 @@ function AssetCard({ asset, canDelete, deleting, onDelete }: {
         </div>
       </div>
       {/* Inline media preview */}
-      {(asset.mediaType === "Video" || asset.mediaType === "Audio" || asset.mediaType === "PDF") && (
+      {(asset.mediaType === "Video" || asset.mediaType === "Audio" || asset.mediaType === "PDF" || asset.mediaType === "Image") && (
         <div className="px-3 pb-3">
           {asset.status === "Processing" && (
             <p className="text-xs mb-1" style={{ color: "#F59E0B" }}>⏳ جارٍ المعالجة، قد لا يكون الملف جاهزاً بعد.</p>
@@ -533,7 +529,7 @@ export default function ContentDetailPage({ params }: { params: Promise<{ id: st
                   <p className="text-xs font-semibold mb-2" style={{ color: "var(--muted)" }}>
                     {lang === "ar" ? "١. اختر نوع الوسيط:" : "1. Select media type:"}
                   </p>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-4 gap-2">
                     {UPLOAD_MEDIA_TYPES.map(t => {
                       const active = uploadMediaTypeId === t.id;
                       return (

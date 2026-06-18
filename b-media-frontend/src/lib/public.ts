@@ -1,7 +1,7 @@
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "https://localhost:44344";
+import { API_BASE } from "./config";
 
 async function pfetch<T>(path: string, signal?: AbortSignal): Promise<T> {
-  const r = await fetch(`${BASE}${path}`, { signal, cache: "no-store" });
+  const r = await fetch(`${API_BASE}${path}`, { signal, cache: "no-store" });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   return r.json();
 }
@@ -62,7 +62,7 @@ export function fetchPublicContents(params: {
   subcategoryId?: string; language?: string; mediaType?: number;
   isFeatured?: boolean;
 } = {}, signal?: AbortSignal): Promise<PublicPage> {
-  const q = new URLSearchParams({ status: "Published" });
+  const q = new URLSearchParams();
   if (params.page) q.set("page", String(params.page));
   if (params.pageSize) q.set("pageSize", String(params.pageSize));
   if (params.categoryId) q.set("categoryId", params.categoryId);
@@ -106,4 +106,3 @@ export async function downloadBlob(url: string, filename: string): Promise<void>
     document.body.removeChild(a);
   }
 }
-//123

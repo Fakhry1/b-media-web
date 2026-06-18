@@ -5,8 +5,8 @@ export type Lang = "ar" | "en";
 export const translations = {
   ar: {
     // nav
-    home: "الرئيسية", video: "فيديو", gallery: "صور", audio: "صوت",
-    articles: "قراءة", categories: "التصنيفات", contents: "المحتوى",
+    home: "الرئيسية", video: "المشاهدة", gallery: "صور", audio: "السماع",
+    articles: "الاطلاع", categories: "التصنيفات", contents: "المحتوى",
     login: "تسجيل الدخول", logout: "تسجيل الخروج",
     search: "ابحث في المحتوى...",
     // categories page
@@ -60,7 +60,7 @@ export const translations = {
   en: {
     // nav
     home: "Home", video: "Video", gallery: "Gallery", audio: "Audio",
-    articles: "Articles", categories: "Categories", contents: "Contents",
+    articles: "Articles", categories: "Categories", contents: "Content",
     login: "Sign In", logout: "Sign Out",
     search: "Search content...",
     // categories page
@@ -70,9 +70,9 @@ export const translations = {
     addCategory: "+ Add Category",
     addSubcategory: "Add Subcategory",
     subcategories: "Subcategories",
-    noSubcategories: "No categories yet",
+    noSubcategories: "No subcategories yet",
     addFirst: "+ Add First Category",
-    retry: "Retry",
+    retry: "Try Again",
     loadError: "Failed to load categories. Please try again later.",
     // modals
     addMainCategory: "Add Main Category",
@@ -82,14 +82,14 @@ export const translations = {
     categoryName: "Category Name *",
     subName: "Subcategory Name *",
     description: "Description",
-    sortOrder: "Sort Order",
+    sortOrder: "Display Order",
     iconUrl: "Icon URL (optional)",
     isActive: "Active",
     saving: "Saving...",
     save: "Save Changes",
     add: "Add",
     cancel: "Cancel",
-    confirmDelete: "Confirm Delete",
+    confirmDelete: "Confirm Deletion",
     deleteWarning: "Are you sure you want to delete",
     deleteWarning2: "This action cannot be undone.",
     deleting: "Deleting...",
@@ -100,15 +100,15 @@ export const translations = {
     loginSubtitle: "Enter your credentials to access your account",
     email: "Email Address",
     password: "Password",
-    forgotPass: "Forgot password?",
+    forgotPass: "Forgot your password?",
     show: "Show", hide: "Hide",
     remember: "Remember me",
-    loggingIn: "Verifying...",
+    loggingIn: "Signing in...",
     noAccount: "Don't have an account?",
-    registerFree: "Register for free",
-    wrongCredentials: "Incorrect email or password",
+    registerFree: "Sign up for free",
+    wrongCredentials: "Incorrect email address or password",
     tooManyAttempts: "Too many attempts. Please wait before trying again.",
-    serverError: "Unable to connect to server. Check your internet connection.",
+    serverError: "Unable to reach the server. Check your internet connection.",
     welcomeBack: "Welcome back — sign in to continue",
   },
 } as const;

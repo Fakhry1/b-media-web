@@ -39,7 +39,13 @@ export function clearSession() {
 export function getUser(): UserInfo | null {
   if (typeof window === "undefined") return null;
   const raw = localStorage.getItem("bmedia_user");
-  return raw ? JSON.parse(raw) : null;
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    localStorage.removeItem("bmedia_user");
+    return null;
+  }
 }
 
 export function isLoggedIn(): boolean {

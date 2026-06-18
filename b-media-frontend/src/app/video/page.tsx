@@ -1,297 +1,468 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, type MouseEvent } from "react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import {
-  fetchPublicContents, fetchPublicCategories, fetchPublicDetail, fetchSignedUrl,
-  downloadBlob, type PublicItem, type PubCategory,
-} from "@/lib/public";
+import { useCategoryData, Pagination } from "@/components/shared/CategoryScreen";
+import { fetchPublicDetail, fetchSignedUrl, downloadBlob, type PublicItem, type PubCategory } from "@/lib/public";
 
-const PAGE_SIZE = 10;
-const CATEGORY_NAME = "المشاهدة";
-const MEDIA_TYPE = 1; // Video
+const V_COLOR = "#10B981";
 
-function formatDate(iso: string | null) {
-  if (!iso) return "";
-  return new Date(iso).toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" });
+function fmtDate(iso: string | null) {
+  return iso ? new Date(iso).toLocaleDateString("ar-EG", { month: "short", day: "numeric", year: "numeric" }) : "";
 }
 
-function SkeletonCard() {
-  return (
-    <div className="rounded-2xl overflow-hidden animate-pulse" style={{ background: "var(--surface)", border: "1px solid var(--line)" }}>
-      <div style={{ paddingTop: "56.25%", background: "var(--surface-2)" }} />
-      <div className="p-4">
-        <div style={{ height: 14, borderRadius: 6, background: "var(--surface-2)", width: "80%", marginBottom: 8 }} />
-        <div style={{ height: 12, borderRadius: 6, background: "var(--surface-2)", width: "50%" }} />
-      </div>
-    </div>
-  );
-}
-
-function VideoCard({ item, onClick, featured }: { item: PublicItem; onClick: () => void; featured?: boolean }) {
+/* ─── Video Card — YouTube style ─────────────────────────── */
+function VideoCard({ item, onClick }: { item: PublicItem; onClick: () => void }) {
   const [hover, setHover] = useState(false);
+  const [dl,    setDl]    = useState(false);
+
+  async function handleDownload(e: MouseEvent) {
+    e.stopPropagation();
+    setDl(true);
+    try {
+      const d = await fetchPublicDetail(item.id);
+      const a = d.mediaAssets.find(x => x.mediaType.toLowerCase().includes("video"));
+      if (!a) return;
+      const s = await fetchSignedUrl(a.id);
+      await downloadBlob(s.url, item.title + ".mp4");
+    } finally { setDl(false); }
+  }
+
   return (
-    <div onClick={onClick} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-      className={featured ? "col-span-full" : ""}
-      style={{ borderRadius: 20, overflow: "hidden", cursor: "pointer", background: "var(--surface)",
-        border: "1px solid var(--line)", boxShadow: hover ? "var(--shadow-md)" : "var(--shadow-sm)",
-        transform: hover ? "translateY(-2px)" : "none", transition: "all .2s" }}>
-      <div style={{ position: "relative", paddingTop: featured ? "38%" : "56.25%", overflow: "hidden" }}>
+    <div onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
+
+      {/* ── Thumbnail (no border, YouTube-style) ── */}
+      <div onClick={onClick} style={{
+        position: "relative", paddingTop: "56.25%",
+        borderRadius: 10, overflow: "hidden", cursor: "pointer",
+        background: "#111",
+      }}>
         {item.thumbnailUrl
           ? <img src={item.thumbnailUrl} alt={item.title} loading="lazy"
-              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%",
+                objectFit: "cover",
+                transform: hover ? "scale(1.04)" : "scale(1)", transition: "transform .45s ease" }} />
           : <div style={{ position: "absolute", inset: 0,
-              background: "linear-gradient(135deg, var(--forest) 0%, #0f2d1e 100%)" }} />
+              background: "linear-gradient(135deg,#0a2e1e,#1a4332)",
+              display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.2)" strokeWidth="1.5">
+                <polygon points="5,3 19,12 5,21"/>
+              </svg>
+            </div>
         }
-        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
-          background: hover ? "rgba(0,0,0,.38)" : "rgba(0,0,0,.18)", transition: "background .2s" }}>
-          <div style={{ width: 56, height: 56, borderRadius: "50%",
-            background: hover ? "var(--gold)" : "rgba(255,255,255,.88)",
+
+        {/* Dark overlay + play button — appears on hover */}
+        <div style={{
+          position: "absolute", inset: 0,
+          background: hover ? "rgba(0,0,0,.42)" : "rgba(0,0,0,.06)",
+          transition: "background .25s",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <div style={{
+            width: 56, height: 56, borderRadius: "50%",
+            background: hover ? "var(--gold)" : "transparent",
             display: "flex", alignItems: "center", justifyContent: "center",
-            boxShadow: "0 4px 20px rgba(0,0,0,.3)",
-            transform: hover ? "scale(1.12)" : "scale(1)", transition: "all .2s" }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill={hover ? "var(--forest)" : "#1a1a1a"} style={{ marginRight: -2 }}>
+            transform: hover ? "scale(1)" : "scale(.5)",
+            opacity: hover ? 1 : 0,
+            transition: "all .25s cubic-bezier(.34,1.4,.64,1)",
+            boxShadow: "0 6px 24px rgba(0,0,0,.5)",
+          }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--forest)" style={{ marginLeft: 3 }}>
               <polygon points="5,3 19,12 5,21" />
             </svg>
           </div>
         </div>
+
+        {/* Badges */}
         {item.isFeatured && (
-          <div style={{ position: "absolute", top: 12, right: 12, background: "var(--gold)", color: "var(--forest)",
-            fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20 }}>مميز</div>
+          <div style={{ position: "absolute", top: 8, right: 8,
+            background: "var(--gold)", color: "var(--forest)",
+            fontSize: 10, fontWeight: 800, padding: "3px 9px", borderRadius: 20,
+            boxShadow: "0 2px 8px rgba(0,0,0,.3)" }}>
+            مميز
+          </div>
+        )}
+        {item.categoryName && (
+          <div style={{ position: "absolute", bottom: 8, right: 8,
+            background: "rgba(0,0,0,.65)", backdropFilter: "blur(6px)",
+            color: "#fff", fontSize: 10, fontWeight: 600, padding: "3px 9px", borderRadius: 20 }}>
+            {item.categoryName}
+          </div>
         )}
       </div>
-      <div className="p-4">
-        <h3 style={{ color: "var(--ink)", fontSize: featured ? 18 : 15, fontWeight: 700, lineHeight: 1.4, marginBottom: 6,
-          display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-          {item.title}
-        </h3>
-        {featured && item.summary && (
-          <p style={{ color: "var(--muted)", fontSize: 13, marginBottom: 8,
-            display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-            {item.summary}
-          </p>
-        )}
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-          {item.categoryName && <span style={{ fontSize: 12, color: "var(--gold)", fontWeight: 600 }}>{item.categoryName}</span>}
-          {item.publishedAt && <span style={{ fontSize: 11, color: "var(--muted-2)" }}>{formatDate(item.publishedAt)}</span>}
+
+      {/* ── Info row below thumbnail (YouTube-style) ── */}
+      <div style={{ display: "flex", gap: 10, paddingTop: 10 }}>
+        {/* Avatar */}
+        <div style={{
+          width: 34, height: 34, borderRadius: "50%", flexShrink: 0, marginTop: 1,
+          background: `linear-gradient(135deg,${V_COLOR},#059669)`,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 13, fontWeight: 800, color: "#fff", letterSpacing: "-.5px",
+        }}>
+          {item.title.charAt(0)}
+        </div>
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h3 style={{
+            color: "var(--ink)", fontSize: 14, fontWeight: 700, lineHeight: 1.4, margin: "0 0 3px",
+            display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
+          }}>
+            {item.title}
+          </h3>
+          {item.summary && (
+            <p style={{
+              color: "var(--muted)", fontSize: 12, margin: "0 0 4px", lineHeight: 1.4,
+              display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical", overflow: "hidden",
+            }}>
+              {item.summary}
+            </p>
+          )}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
+            {item.publishedAt && (
+              <span style={{ fontSize: 11, color: "var(--muted-2)" }}>{fmtDate(item.publishedAt)}</span>
+            )}
+            <button disabled={dl} onClick={handleDownload}
+              style={{
+                display: "flex", alignItems: "center", gap: 4, padding: "3px 10px",
+                borderRadius: 14, border: "1px solid var(--line)",
+                background: "transparent", color: dl ? "var(--muted-2)" : "var(--muted)",
+                fontSize: 11, fontWeight: 500, cursor: dl ? "default" : "pointer", transition: "all .15s",
+              }}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <path d="M12 5v14M5 12l7 7 7-7"/>
+              </svg>
+              <span className="vd-dl-text">{dl ? "جارٍ..." : "تحميل"}</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
+/* ─── Skeleton Card ──────────────────────────────────────── */
+function SkeletonCard() {
+  return (
+    <div className="animate-pulse">
+      <div style={{ paddingTop: "56.25%", borderRadius: 10, background: "var(--surface-2)", position: "relative" }} />
+      <div style={{ display: "flex", gap: 10, paddingTop: 10 }}>
+        <div style={{ width: 34, height: 34, borderRadius: "50%", background: "var(--surface-2)", flexShrink: 0 }} />
+        <div style={{ flex: 1 }}>
+          <div style={{ height: 14, borderRadius: 6, background: "var(--surface-2)", width: "85%", marginBottom: 8 }} />
+          <div style={{ height: 11, borderRadius: 6, background: "var(--surface-2)", width: "55%", marginBottom: 6 }} />
+          <div style={{ height: 10, borderRadius: 6, background: "var(--surface-2)", width: "35%" }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Video Modal — Netflix/Vimeo cinematic style ─────────── */
 function VideoModal({ item, onClose }: { item: PublicItem; onClose: () => void }) {
+  const [url,     setUrl]     = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [url, setUrl] = useState<string | null>(null);
-  const [err, setErr] = useState(false);
-  const [downloading, setDownloading] = useState(false);
+  const [err,     setErr]     = useState(false);
+  const [dl,      setDl]      = useState(false);
 
   useEffect(() => {
     const ctrl = new AbortController();
     fetchPublicDetail(item.id, ctrl.signal)
       .then(async d => {
-        const asset = d.mediaAssets.find(a => a.mediaType.toLowerCase().includes("video"));
-        if (!asset) { setErr(true); setLoading(false); return; }
-        const signed = await fetchSignedUrl(asset.id, ctrl.signal);
-        setUrl(signed.url); setLoading(false);
+        const a = d.mediaAssets.find(x => x.mediaType.toLowerCase().includes("video"));
+        if (!a) { setErr(true); setLoading(false); return; }
+        const s = await fetchSignedUrl(a.id, ctrl.signal);
+        setUrl(s.url); setLoading(false);
       })
       .catch(e => { if (e.name !== "AbortError") { setErr(true); setLoading(false); } });
     return () => ctrl.abort();
   }, [item.id]);
 
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0,0,0,.78)",
-      backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-      <div onClick={e => e.stopPropagation()}
-        style={{ background: "var(--surface)", borderRadius: 20, width: "100%", maxWidth: 900,
-          maxHeight: "90vh", overflow: "auto", boxShadow: "var(--shadow-lg)" }}>
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between",
-          padding: "20px 24px 16px", borderBottom: "1px solid var(--line)" }}>
-          <div>
-            <h2 style={{ color: "var(--ink)", fontWeight: 700, fontSize: 18 }}>{item.title}</h2>
-            <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
-              {item.categoryName && <span style={{ fontSize: 12, color: "var(--gold)", fontWeight: 600 }}>{item.categoryName}</span>}
-              {item.publishedAt && <span style={{ fontSize: 12, color: "var(--muted-2)" }}>{formatDate(item.publishedAt)}</span>}
-            </div>
-          </div>
-          <button onClick={onClose} style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid var(--line)",
-            background: "var(--surface-2)", cursor: "pointer", fontSize: 20, color: "var(--muted)",
-            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>×</button>
-        </div>
-        {item.summary && <p style={{ padding: "12px 24px 0", color: "var(--muted)", fontSize: 14 }}>{item.summary}</p>}
-        <div style={{ padding: 24 }}>
+    <div onClick={onClose} style={{
+      position: "fixed", inset: 0, zIndex: 200,
+      background: "rgba(0,0,0,.96)", backdropFilter: "blur(12px)",
+      display: "flex", flexDirection: "column", alignItems: "center",
+      justifyContent: "center", overflowY: "auto",
+    }}>
+      {/* Close */}
+      <button onClick={onClose} style={{
+        position: "fixed", top: 16, right: 16, zIndex: 210,
+        width: 40, height: 40, borderRadius: "50%",
+        background: "rgba(255,255,255,.1)", border: "1px solid rgba(255,255,255,.2)",
+        color: "#fff", fontSize: 22, cursor: "pointer",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        transition: "background .15s",
+      }}>×</button>
+
+      <div onClick={(e: MouseEvent<HTMLDivElement>) => e.stopPropagation()}
+        style={{ width: "100%", maxWidth: 1080, padding: "0 0 32px" }}>
+
+        {/* Video area */}
+        <div style={{ position: "relative", paddingTop: "56.25%", background: "#000" }}>
           {loading && (
-            <div style={{ paddingTop: "56.25%", position: "relative", background: "var(--surface-2)", borderRadius: 12 }}>
-              <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column",
-                alignItems: "center", justifyContent: "center", gap: 12 }}>
-                <div style={{ width: 40, height: 40, borderRadius: "50%", border: "3px solid var(--gold)",
-                  borderTopColor: "transparent", animation: "spin 1s linear infinite" }} />
-                <p style={{ color: "var(--muted)", fontSize: 14 }}>جارٍ التحميل...</p>
-              </div>
+            <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column",
+              alignItems: "center", justifyContent: "center", gap: 14 }}>
+              <div style={{ width: 48, height: 48, borderRadius: "50%", border: "3px solid var(--gold)",
+                borderTopColor: "transparent", animation: "spin 1s linear infinite" }} />
+              <p style={{ color: "rgba(255,255,255,.4)", fontSize: 13, margin: 0 }}>جارٍ التحميل…</p>
             </div>
           )}
-          {err && !loading && <p style={{ textAlign: "center", color: "var(--muted)", padding: "40px 0" }}>تعذّر تحميل الفيديو</p>}
+          {err && !loading && (
+            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <p style={{ color: "rgba(255,255,255,.4)", fontSize: 14 }}>تعذّر تحميل الفيديو</p>
+            </div>
+          )}
           {url && !loading && (
-            <>
-              <video controls autoPlay style={{ width: "100%", borderRadius: 12, background: "#000" }} src={url}>
-                متصفحك لا يدعم الفيديو.
-              </video>
-              <div style={{ textAlign: "center", marginTop: 14 }}>
-                <button disabled={downloading}
-                  onClick={async () => {
-                    setDownloading(true);
-                    try { await downloadBlob(url, item.title + ".mp4"); } finally { setDownloading(false); }
-                  }}
-                  style={{ padding: "8px 22px", borderRadius: 10, border: "none",
-                    background: downloading ? "var(--line)" : "var(--forest)", color: "#fff",
-                    fontSize: 13, fontWeight: 600, cursor: downloading ? "default" : "pointer" }}>
-                  {downloading ? "جارٍ التحميل..." : "⬇ تحميل الفيديو"}
-                </button>
-              </div>
-            </>
+            <video controls autoPlay
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%",
+                background: "#000", objectFit: "contain" }}
+              src={url} />
+          )}
+        </div>
+
+        {/* Info bar */}
+        <div style={{
+          background: "#111", padding: "16px 24px 20px",
+          display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16,
+          flexWrap: "wrap",
+        }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h2 style={{ color: "#fff", fontWeight: 700, fontSize: "clamp(15px,2.5vw,20px)",
+              margin: "0 0 6px", lineHeight: 1.3 }}>
+              {item.title}
+            </h2>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              {item.categoryName && (
+                <span style={{ fontSize: 13, color: V_COLOR, fontWeight: 700 }}>{item.categoryName}</span>
+              )}
+              {item.publishedAt && (
+                <span style={{ fontSize: 12, color: "rgba(255,255,255,.35)" }}>{fmtDate(item.publishedAt)}</span>
+              )}
+            </div>
+            {item.summary && (
+              <p style={{ color: "rgba(255,255,255,.45)", fontSize: 13, lineHeight: 1.6,
+                marginTop: 8, marginBottom: 0 }}>
+                {item.summary}
+              </p>
+            )}
+          </div>
+
+          {url && (
+            <button disabled={dl}
+              onClick={async () => {
+                setDl(true);
+                try { await downloadBlob(url, item.title + ".mp4"); }
+                finally { setDl(false); }
+              }}
+              style={{
+                display: "flex", alignItems: "center", gap: 7, padding: "9px 20px",
+                borderRadius: 10, border: "1px solid rgba(255,255,255,.18)",
+                background: dl ? "rgba(255,255,255,.04)" : "rgba(255,255,255,.1)",
+                color: dl ? "rgba(255,255,255,.25)" : "#fff",
+                fontSize: 13, fontWeight: 600, cursor: dl ? "default" : "pointer",
+                transition: "all .15s", flexShrink: 0,
+              }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <path d="M12 5v14M5 12l7 7 7-7"/>
+              </svg>
+              {dl ? "جارٍ التحميل…" : "تحميل الفيديو"}
+            </button>
           )}
         </div>
       </div>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 }
 
-function Pagination({ page, totalPages, setPage }: { page: number; totalPages: number; setPage: (p: number) => void }) {
-  if (totalPages <= 1) return null;
-  const pages = Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
-    if (totalPages <= 7) return i + 1;
-    if (page <= 4) return i + 1;
-    if (page >= totalPages - 3) return totalPages - 6 + i;
-    return page - 3 + i;
-  });
+/* ─── Filter chips (YouTube-style) ──────────────────────── */
+function FilterChips({ category, activeSubId, onSelect }: {
+  category: PubCategory | null | undefined;
+  activeSubId: string | null;
+  onSelect: (id: string | null) => void;
+}) {
+  const subs = category?.subcategories ?? [];
+  if (!category || subs.length === 0) return null;
+
   return (
-    <div style={{ display: "flex", justifyContent: "center", gap: 6, marginTop: 40, flexWrap: "wrap" }}>
-      <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1}
-        style={{ padding: "8px 16px", borderRadius: 10, border: "1px solid var(--line)",
-          background: "var(--surface)", color: page === 1 ? "var(--muted-2)" : "var(--ink)",
-          cursor: page === 1 ? "default" : "pointer", fontSize: 13 }}>السابق</button>
-      {pages.map(p => (
-        <button key={p} onClick={() => setPage(p)}
-          style={{ width: 38, height: 38, borderRadius: 10, border: "1px solid",
-            borderColor: p === page ? "var(--gold)" : "var(--line)",
-            background: p === page ? "var(--gold)" : "var(--surface)",
-            color: p === page ? "var(--forest)" : "var(--ink)",
-            fontWeight: p === page ? 700 : 400, cursor: "pointer", fontSize: 13 }}>{p}</button>
-      ))}
-      <button onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page === totalPages}
-        style={{ padding: "8px 16px", borderRadius: 10, border: "1px solid var(--line)",
-          background: "var(--surface)", color: page === totalPages ? "var(--muted-2)" : "var(--ink)",
-          cursor: page === totalPages ? "default" : "pointer", fontSize: 13 }}>التالي</button>
+    <div style={{
+      display: "flex", gap: 8, flexWrap: "nowrap",
+      overflowX: "auto", scrollbarWidth: "none", paddingBottom: 2,
+    }}>
+      {[{ id: null as string | null, name: "الكل" }, ...subs.map(s => ({ id: s.id, name: s.name }))].map(chip => {
+        const active = chip.id === activeSubId;
+        return (
+          <button key={chip.id ?? "all"} onClick={() => onSelect(chip.id)}
+            style={{
+              flexShrink: 0, padding: "6px 14px", borderRadius: 999, fontSize: 13,
+              fontWeight: active ? 700 : 500,
+              border: `1px solid ${active ? "var(--ink)" : "var(--line)"}`,
+              background: active ? "var(--ink)" : "transparent",
+              color: active ? "var(--bg)" : "var(--ink-2)",
+              cursor: "pointer", transition: "all .15s",
+            }}>
+            {chip.name}
+          </button>
+        );
+      })}
     </div>
   );
 }
+
+/* ─── Page ───────────────────────────────────────────────── */
+const PAGE_SIZE = 12;
 
 export default function VideoPage() {
-  const [pageCategory, setPageCategory] = useState<PubCategory | null>(null);
-  const [subId, setSubId] = useState<string | null>(null);
-  const [items, setItems] = useState<PublicItem[]>([]);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const [activeModal, setActiveModal] = useState<string | null>(null);
+  const [page,     setPage]     = useState(1);
+  const [subId,    setSubId]    = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
 
-  const modalItem = items.find(i => i.id === activeModal) ?? null;
+  const { category, items, totalPages, loading, error } = useCategoryData(
+    "المشاهدة / Video", page, subId, PAGE_SIZE, 1,
+  );
 
-  // Find the fixed category
-  useEffect(() => {
-    const ctrl = new AbortController();
-    fetchPublicCategories(ctrl.signal)
-      .then(cats => {
-        const cat = cats.find(c => c.name === CATEGORY_NAME) ?? null;
-        setPageCategory(cat);
-        if (!cat) setLoading(false);
-      })
-      .catch(e => { if (e.name !== "AbortError") { setError(true); setLoading(false); } });
-    return () => ctrl.abort();
+  const handleSub = useCallback((id: string | null) => {
+    setSubId(id); setPage(1);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
-  // Fetch content once category is known
-  useEffect(() => {
-    if (!pageCategory) return;
-    const ctrl = new AbortController();
-    setLoading(true); setError(false);
-    fetchPublicContents(
-      { page, pageSize: PAGE_SIZE, categoryId: pageCategory.id, subcategoryId: subId ?? undefined, mediaType: MEDIA_TYPE },
-      ctrl.signal
-    )
-      .then(d => { setItems(d.items); setTotalPages(d.totalPages); })
-      .catch(e => { if (e.name !== "AbortError") setError(true); })
-      .finally(() => setLoading(false));
-    return () => ctrl.abort();
-  }, [pageCategory, page, subId]);
+  const handlePage = useCallback((p: number) => {
+    setPage(p);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
 
-  const handleSub = useCallback((id: string | null) => { setSubId(id); setPage(1); }, []);
-
-  const featuredItem = items.find(i => i.isFeatured) ?? null;
-  const gridItems = featuredItem ? items.filter(i => i.id !== featuredItem.id) : items;
+  const activeItem = items.find((i: PublicItem) => i.id === activeId) ?? null;
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--bg)" }}>
       <Header />
-      <main style={{ flex: 1 }}>
-        {/* Hero */}
-        <div style={{ padding: "28px 0 0", borderBottom: "1px solid var(--line)" }}>
-          <div className="container-main">
-            <h1 style={{ fontSize: 26, fontWeight: 800, color: "var(--ink)", fontFamily: "'Noto Kufi Arabic',sans-serif" }}>
-              🎬 {CATEGORY_NAME}
-            </h1>
-            <p style={{ color: "var(--muted)", marginTop: 4, fontSize: 14 }}>استعرض جميع مقاطع الفيديو</p>
 
-            {/* Subcategory tabs */}
-            <div style={{ display: "flex", gap: 8, overflowX: "auto", padding: "16px 0 0", scrollbarWidth: "none" }}>
-              <button onClick={() => handleSub(null)}
-                style={{ flexShrink: 0, padding: "7px 20px", borderRadius: 999, border: "1px solid",
-                  borderColor: subId === null ? "var(--gold)" : "var(--line)",
-                  background: subId === null ? "var(--gold)" : "transparent",
-                  color: subId === null ? "var(--forest)" : "var(--ink)",
-                  fontWeight: 600, fontSize: 13, cursor: "pointer", transition: "all .15s" }}>
-                الكل
-              </button>
-              {(pageCategory?.subcategories ?? []).map(sub => (
-                <button key={sub.id} onClick={() => handleSub(sub.id)}
-                  style={{ flexShrink: 0, padding: "7px 20px", borderRadius: 999, border: "1px solid",
-                    borderColor: subId === sub.id ? "var(--gold)" : "var(--line)",
-                    background: subId === sub.id ? "var(--gold)" : "transparent",
-                    color: subId === sub.id ? "var(--forest)" : "var(--ink)",
-                    fontWeight: 600, fontSize: 13, cursor: "pointer", transition: "all .15s" }}>
-                  {sub.name}
-                </button>
-              ))}
+      {/* ── Page Hero Banner ── */}
+      <div style={{
+        background: "linear-gradient(150deg,var(--forest) 0%,#1a4332 55%,#0a1f12 100%)",
+        padding: "clamp(24px,5vw,44px) 0 clamp(20px,4vw,36px)",
+        position: "relative", overflow: "hidden",
+      }}>
+        <div style={{ position: "absolute", inset: 0, opacity: .05,
+          backgroundImage: "radial-gradient(circle,#fff 1px,transparent 1px)",
+          backgroundSize: "28px 28px" }} />
+        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 4,
+          background: "linear-gradient(90deg,var(--gold),#e8c05a,var(--gold))" }} />
+
+        <div className="vd-wrap" style={{ position: "relative", zIndex: 1 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
+            gap: 16, flexWrap: "wrap" }}>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,.4)",
+                letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 6 }}>
+                B-Media · Video
+              </div>
+              <h1 style={{ color: "#fff", margin: 0, fontWeight: 900,
+                fontSize: "clamp(22px,4vw,36px)", lineHeight: 1.1,
+                fontFamily: "'Noto Kufi Arabic',sans-serif" }}>
+                🎬 المشاهدة
+              </h1>
+              <p style={{ color: "rgba(255,255,255,.45)", margin: "6px 0 0", fontSize: 14 }}>
+                استعرض جميع مقاطع الفيديو المنشورة
+              </p>
             </div>
+
+            {!loading && items.length > 0 && (
+              <div style={{
+                background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.15)",
+                borderRadius: 14, padding: "10px 20px", textAlign: "center",
+              }}>
+                <div style={{ color: "var(--gold)", fontWeight: 900, fontSize: 22, lineHeight: 1 }}>
+                  {totalPages * PAGE_SIZE}+
+                </div>
+                <div style={{ color: "rgba(255,255,255,.45)", fontSize: 11, marginTop: 3 }}>فيديو</div>
+              </div>
+            )}
           </div>
         </div>
+      </div>
 
-        {/* Content */}
-        <div className="container-main" style={{ padding: "32px 0 48px" }}>
-          {error && <p style={{ textAlign: "center", padding: 40, color: "var(--muted)" }}>حدث خطأ أثناء التحميل</p>}
-          {loading ? (
-            <div className="vgrid">{Array.from({ length: PAGE_SIZE }).map((_, i) => <SkeletonCard key={i} />)}</div>
-          ) : !error && items.length === 0 ? (
-            <p style={{ textAlign: "center", padding: 60, color: "var(--muted)" }}>لا توجد مقاطع فيديو في هذا القسم حالياً</p>
-          ) : !error && (
-            <>
-              {featuredItem && <div style={{ marginBottom: 28 }}><VideoCard item={featuredItem} onClick={() => setActiveModal(featuredItem.id)} featured /></div>}
-              <div className="vgrid">{gridItems.map(item => <VideoCard key={item.id} item={item} onClick={() => setActiveModal(item.id)} />)}</div>
-            </>
+      {/* ── Sticky filter chips ── */}
+      {category && (category.subcategories?.length ?? 0) > 0 && (
+        <div style={{
+          position: "sticky", top: 65, zIndex: 40,
+          background: "color-mix(in srgb,var(--bg) 92%,transparent)",
+          backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
+          borderBottom: "1px solid var(--line)",
+          paddingTop: 10, paddingBottom: 10,
+        }}>
+          <div className="vd-wrap">
+            <FilterChips category={category} activeSubId={subId} onSelect={handleSub} />
+          </div>
+        </div>
+      )}
+
+      {/* ── Videos grid ── */}
+      <main style={{ flex: 1 }}>
+        <div className="vd-wrap" style={{ paddingTop: 28, paddingBottom: 56 }}>
+
+          {error && (
+            <div style={{ textAlign: "center", padding: 60 }}>
+              <p style={{ color: "var(--muted)", marginBottom: 16 }}>حدث خطأ أثناء التحميل</p>
+              <button onClick={() => window.location.reload()} style={{
+                padding: "8px 22px", borderRadius: 10, border: "1px solid var(--line)",
+                background: "var(--surface)", color: "var(--ink)", cursor: "pointer", fontSize: 13,
+              }}>إعادة المحاولة</button>
+            </div>
           )}
-          <Pagination page={page} totalPages={totalPages} setPage={setPage} />
+
+          {loading && (
+            <div className="vd-grid">
+              {Array.from({ length: PAGE_SIZE }).map((_, i) => <SkeletonCard key={i} />)}
+            </div>
+          )}
+
+          {!loading && !error && items.length === 0 && (
+            <div style={{ textAlign: "center", padding: "80px 0" }}>
+              <div style={{ fontSize: 52, marginBottom: 16 }}>🎬</div>
+              <p style={{ color: "var(--muted)", fontSize: 15 }}>لا توجد مقاطع فيديو في هذا القسم حالياً</p>
+            </div>
+          )}
+
+          {!loading && !error && items.length > 0 && (
+            <div className="vd-grid">
+              {items.map((item: PublicItem) => (
+                <VideoCard key={item.id} item={item} onClick={() => setActiveId(item.id)} />
+              ))}
+            </div>
+          )}
+
+          <Pagination page={page} totalPages={totalPages} setPage={handlePage} />
         </div>
       </main>
+
       <Footer />
-      {activeModal && modalItem && <VideoModal item={modalItem} onClose={() => setActiveModal(null)} />}
+
+      {activeItem && <VideoModal item={activeItem} onClose={() => setActiveId(null)} />}
+
       <style>{`
-        .container-main { max-width: 1280px; margin: 0 auto; padding-inline: 24px; }
-        .vgrid { display: grid; gap: 24px; grid-template-columns: repeat(3, 1fr); }
-        @media (max-width: 1024px) { .vgrid { grid-template-columns: repeat(2, 1fr); } }
-        @media (max-width: 640px)  { .vgrid { grid-template-columns: 1fr; } }
+        .vd-wrap {
+          max-width: 1280px;
+          margin: 0 auto;
+          padding-left: 24px;
+          padding-right: 24px;
+        }
+        .vd-grid {
+          display: grid;
+          gap: 32px 20px;
+          grid-template-columns: repeat(4, 1fr);
+        }
+        @media (max-width: 1100px) { .vd-grid { grid-template-columns: repeat(3, 1fr); } }
+        @media (max-width: 768px)  { .vd-grid { grid-template-columns: repeat(2, 1fr); gap: 24px 14px; } }
+        @media (max-width: 640px)  { .vd-wrap { padding-left: 16px; padding-right: 16px; } }
+        @media (max-width: 480px)  {
+          .vd-wrap { padding-left: 12px; padding-right: 12px; }
+          .vd-grid { grid-template-columns: 1fr; gap: 28px; }
+          .vd-dl-text { display: none; }
+        }
       `}</style>
     </div>
   );

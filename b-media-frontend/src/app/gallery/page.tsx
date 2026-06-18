@@ -1,308 +1,599 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, type MouseEvent, type WheelEvent, type KeyboardEvent } from "react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import {
-  fetchPublicContents, fetchPublicCategories, fetchPublicDetail, fetchSignedUrl,
-  downloadBlob, type PublicItem, type PubCategory,
-} from "@/lib/public";
+import { useCategoryData, Pagination } from "@/components/shared/CategoryScreen";
+import { fetchPublicDetail, fetchSignedUrl, downloadBlob, type PublicItem, type PubCategory } from "@/lib/public";
 
-const PAGE_SIZE = 16;
-const CATEGORY_NAME = "الصور";
-const MEDIA_TYPE = 2; // Image
+const PALETTE = ["#3B82F6","#8B5CF6","#10B981","#F59E0B","#EC4899","#06B6D4","#EF4444"];
+const accent  = (t: string) => PALETTE[t.charCodeAt(0) % PALETTE.length];
+const RATIOS  = ["133%","100%","75%","115%","90%"];
 
-function formatDate(iso: string | null) {
-  if (!iso) return "";
-  return new Date(iso).toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" });
+function fmtDate(iso: string | null) {
+  return iso ? new Date(iso).toLocaleDateString("ar-EG", { month: "short", day: "numeric", year: "numeric" }) : "";
 }
 
-function SkeletonCard() {
-  return (
-    <div className="animate-pulse" style={{ borderRadius: 16, overflow: "hidden",
-      background: "var(--surface)", border: "1px solid var(--line)" }}>
-      <div style={{ paddingTop: "75%", background: "var(--surface-2)" }} />
-      <div style={{ padding: "12px 14px" }}>
-        <div style={{ height: 13, borderRadius: 6, background: "var(--surface-2)", width: "70%", marginBottom: 6 }} />
-        <div style={{ height: 11, borderRadius: 6, background: "var(--surface-2)", width: "45%" }} />
-      </div>
-    </div>
-  );
-}
+/* ─── Image Card — Unsplash style ────────────────────────── */
+function ImageCard({ item, index, onClick }: { item: PublicItem; index: number; onClick: () => void }) {
+  const [hover,      setHover]      = useState(false);
+  const [dl,         setDl]         = useState(false);
+  const [imgUrl,     setImgUrl]     = useState<string | null>(item.thumbnailUrl);
+  const [imgLoading, setImgLoading] = useState(!item.thumbnailUrl);
+  const cardRef = useRef<HTMLDivElement>(null);
 
-function ImageCard({ item, onClick }: { item: PublicItem; onClick: () => void }) {
-  const [hover, setHover] = useState(false);
-  const palette = ["#3B82F6", "#8B5CF6", "#10B981", "#F59E0B", "#EC4899", "#06B6D4", "#EF4444"];
-  const color = palette[item.title.charCodeAt(0) % palette.length];
+  const c     = accent(item.title);
+  const ratio = RATIOS[index % RATIOS.length];
+
+  /* Auto-fetch signed URL when card enters viewport and no thumbnail */
+  useEffect(() => {
+    if (item.thumbnailUrl) return;
+    const el = cardRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(entries => {
+      if (!entries[0].isIntersecting) return;
+      obs.disconnect();
+      const ctrl = new AbortController();
+      fetchPublicDetail(item.id, ctrl.signal)
+        .then(async d => {
+          const a = d.mediaAssets.find(x => x.mediaType.toLowerCase().includes("image") && x.isPrimary)
+            ?? d.mediaAssets.find(x => x.mediaType.toLowerCase().includes("image"));
+          if (!a) { setImgLoading(false); return; }
+          const s = await fetchSignedUrl(a.id, ctrl.signal);
+          setImgUrl(s.url);
+          setImgLoading(false);
+        })
+        .catch(e => { if (e.name !== "AbortError") setImgLoading(false); });
+    }, { threshold: 0.05 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [item.id, item.thumbnailUrl]);
+
+  async function handleDownload(e: MouseEvent) {
+    e.stopPropagation();
+    setDl(true);
+    try {
+      if (imgUrl && !imgUrl.startsWith("blob")) {
+        await downloadBlob(imgUrl, item.title + ".jpg");
+      } else {
+        const d = await fetchPublicDetail(item.id);
+        const a = d.mediaAssets.find(x => x.mediaType.toLowerCase().includes("image") && x.isPrimary)
+          ?? d.mediaAssets.find(x => x.mediaType.toLowerCase().includes("image"));
+        if (!a) return;
+        const s = await fetchSignedUrl(a.id);
+        await downloadBlob(s.url, item.title + ".jpg");
+      }
+    } finally { setDl(false); }
+  }
 
   return (
-    <div onClick={onClick} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-      style={{ borderRadius: 16, overflow: "hidden", cursor: "pointer", background: "var(--surface)",
-        border: "1px solid var(--line)", boxShadow: hover ? "var(--shadow-md)" : "var(--shadow-sm)",
-        transform: hover ? "translateY(-3px)" : "none", transition: "all .2s" }}>
-      <div style={{ position: "relative", paddingTop: "75%", overflow: "hidden" }}>
-        {item.thumbnailUrl
-          ? <img src={item.thumbnailUrl} alt={item.title} loading="lazy"
-              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover",
-                transform: hover ? "scale(1.05)" : "scale(1)", transition: "transform .3s" }} />
-          : <div style={{ position: "absolute", inset: 0,
-              background: `linear-gradient(135deg, ${color}55 0%, ${color}22 100%)`,
-              display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5">
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <circle cx="8.5" cy="8.5" r="1.5" />
-                <polyline points="21,15 16,10 5,21" />
-              </svg>
+    <div className="gl-card" ref={cardRef}
+      onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
+      {/* Thumbnail */}
+      <div onClick={onClick} style={{
+        position: "relative", paddingTop: ratio,
+        borderRadius: 12, overflow: "hidden",
+        cursor: "zoom-in", background: `linear-gradient(135deg,${c}22,${c}44)`,
+      }}>
+        {/* Loading shimmer */}
+        {imgLoading && (
+          <div className="animate-pulse" style={{
+            position: "absolute", inset: 0,
+            background: `linear-gradient(135deg,${c}18,${c}33)`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <div style={{ width: 32, height: 32, borderRadius: "50%",
+              border: `2px solid ${c}66`, borderTopColor: c,
+              animation: "gl-spin 1s linear infinite" }} />
+          </div>
+        )}
+
+        {/* Actual image */}
+        {imgUrl && (
+          <img src={imgUrl} alt={item.title} loading="lazy"
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%",
+              objectFit: "cover",
+              transform: hover ? "scale(1.06)" : "scale(1)", transition: "transform .5s ease" }} />
+        )}
+
+        {/* No image + not loading */}
+        {!imgUrl && !imgLoading && (
+          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.5">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <path d="M21 15l-5-5L5 21"/>
+            </svg>
+          </div>
+        )}
+
+        {/* Hover overlay — gradient + info */}
+        <div style={{
+          position: "absolute", inset: 0, borderRadius: 12,
+          background: hover
+            ? "linear-gradient(to top,rgba(0,0,0,.78) 0%,rgba(0,0,0,.18) 55%,transparent 100%)"
+            : "linear-gradient(to top,rgba(0,0,0,.18) 0%,transparent 60%)",
+          transition: "background .3s",
+          display: "flex", flexDirection: "column", justifyContent: "flex-end", padding: "12px",
+        }}>
+          <div style={{
+            transform: hover ? "translateY(0)" : "translateY(8px)",
+            opacity: hover ? 1 : 0,
+            transition: "all .25s", display: "flex", flexDirection: "column", gap: 8,
+          }}>
+            <p style={{ color: "#fff", fontWeight: 700, fontSize: 13, lineHeight: 1.35, margin: 0,
+              textShadow: "0 1px 6px rgba(0,0,0,.6)",
+              display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+              {item.title}
+            </p>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+              <span style={{ color: "rgba(255,255,255,.6)", fontSize: 10 }}>{fmtDate(item.publishedAt)}</span>
+              <button disabled={dl} onClick={handleDownload}
+                style={{
+                  display: "flex", alignItems: "center", gap: 5,
+                  padding: "5px 12px", borderRadius: 20, border: "none",
+                  background: dl ? "rgba(255,255,255,.4)" : "rgba(255,255,255,.95)",
+                  color: "#1a1a1a", fontSize: 11, fontWeight: 700,
+                  cursor: dl ? "default" : "pointer", flexShrink: 0,
+                }}>
+                {dl
+                  ? "..."
+                  : <>
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path d="M12 5v14M5 12l7 7 7-7"/>
+                      </svg>
+                      تحميل
+                    </>
+                }
+              </button>
             </div>
-        }
-        <div style={{ position: "absolute", inset: 0, background: hover ? "rgba(0,0,0,.3)" : "transparent",
-          transition: "background .2s", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          {hover && (
-            <div style={{ width: 44, height: 44, borderRadius: "50%", background: "rgba(255,255,255,.9)",
-              display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a1a1a" strokeWidth="2">
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                <line x1="11" y1="8" x2="11" y2="14" />
-                <line x1="8" y1="11" x2="14" y2="11" />
-              </svg>
-            </div>
-          )}
+          </div>
         </div>
+
+        {/* Badges */}
         {item.isFeatured && (
-          <div style={{ position: "absolute", top: 10, right: 10, background: "var(--gold)",
-            color: "var(--forest)", fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20 }}>مميز</div>
+          <div style={{ position: "absolute", top: 8, right: 8,
+            background: "var(--gold)", color: "var(--forest)",
+            fontSize: 10, fontWeight: 800, padding: "3px 9px", borderRadius: 20,
+            boxShadow: "0 2px 8px rgba(0,0,0,.3)" }}>مميز</div>
         )}
       </div>
-      <div style={{ padding: "12px 14px" }}>
-        <h3 style={{ color: "var(--ink)", fontSize: 14, fontWeight: 700, lineHeight: 1.4, margin: "0 0 6px",
-          display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-          {item.title}
-        </h3>
-        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          {item.categoryName && (
-            <span style={{ fontSize: 11, color, fontWeight: 600 }}>{item.categoryName}</span>
-          )}
-          {item.publishedAt && (
-            <span style={{ fontSize: 11, color: "var(--muted-2)" }}>{formatDate(item.publishedAt)}</span>
-          )}
-        </div>
-      </div>
     </div>
   );
 }
 
-function ImageLightbox({ item, onClose }: { item: PublicItem; onClose: () => void }) {
-  const [loading, setLoading] = useState(true);
-  const [url, setUrl] = useState<string | null>(null);
-  const [err, setErr] = useState(false);
-  const [downloading, setDownloading] = useState(false);
+/* ─── Skeleton Card ──────────────────────────────────────── */
+function SkeletonCard({ index }: { index: number }) {
+  const ratio = RATIOS[index % RATIOS.length];
+  return (
+    <div className="gl-card animate-pulse">
+      <div style={{ paddingTop: ratio, borderRadius: 12, background: "var(--surface-2)" }} />
+    </div>
+  );
+}
 
+/* ─── Lightbox — full screen with zoom + nav ─────────────── */
+function Lightbox({ item, items, onClose, onNavigate }: {
+  item: PublicItem;
+  items: PublicItem[];
+  onClose: () => void;
+  onNavigate: (id: string) => void;
+}) {
+  const [url,     setUrl]     = useState<string | null>(item.thumbnailUrl);
+  const [loading, setLoading] = useState(true);
+  const [dl,      setDl]      = useState(false);
+  const [zoom,    setZoom]    = useState(1);
+
+  const idx     = items.findIndex(i => i.id === item.id);
+  const hasPrev = idx > 0;
+  const hasNext = idx < items.length - 1;
+
+  /* Fetch full-res image */
   useEffect(() => {
+    setUrl(item.thumbnailUrl);
+    setLoading(true);
+    setZoom(1);
     const ctrl = new AbortController();
     fetchPublicDetail(item.id, ctrl.signal)
       .then(async d => {
-        const asset = d.mediaAssets.find(a =>
-          a.mediaType.toLowerCase().includes("image") || a.mediaType === "2"
-        );
-        if (!asset) {
-          if (item.thumbnailUrl) { setUrl(item.thumbnailUrl); setLoading(false); return; }
-          setErr(true); setLoading(false); return;
-        }
-        const signed = await fetchSignedUrl(asset.id, ctrl.signal);
-        setUrl(signed.url); setLoading(false);
+        const a = d.mediaAssets.find(x => x.mediaType.toLowerCase().includes("image") && x.isPrimary)
+          ?? d.mediaAssets.find(x => x.mediaType.toLowerCase().includes("image"));
+        if (!a) { setLoading(false); return; }
+        const s = await fetchSignedUrl(a.id, ctrl.signal);
+        setUrl(s.url); setLoading(false);
       })
-      .catch(e => { if (e.name !== "AbortError") { setErr(true); setLoading(false); } });
+      .catch(e => { if (e.name !== "AbortError") setLoading(false); });
     return () => ctrl.abort();
-  }, [item.id, item.thumbnailUrl]);
+  }, [item.id]);
 
+  /* Keyboard nav */
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    function onKey(e: globalThis.KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+      if ((e.key === "ArrowLeft" || e.key === "ArrowUp") && hasPrev)  onNavigate(items[idx - 1].id);
+      if ((e.key === "ArrowRight" || e.key === "ArrowDown") && hasNext) onNavigate(items[idx + 1].id);
+      if (e.key === "+") setZoom(z => Math.min(5, z + 0.5));
+      if (e.key === "-") setZoom(z => Math.max(1, z - 0.5));
+      if (e.key === "0") setZoom(1);
+    }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [item.id, idx, hasPrev, hasNext, onClose, onNavigate, items]);
+
+  /* Mouse wheel zoom */
+  function handleWheel(e: WheelEvent<HTMLDivElement>) {
+    e.stopPropagation();
+    setZoom(z => Math.max(1, Math.min(5, z - e.deltaY * 0.0015)));
+  }
+
+  const zoomIn  = (e: MouseEvent) => { e.stopPropagation(); setZoom(z => Math.min(5, parseFloat((z + 0.5).toFixed(1)))); };
+  const zoomOut = (e: MouseEvent) => { e.stopPropagation(); setZoom(z => Math.max(1, parseFloat((z - 0.5).toFixed(1)))); };
+  const zoomReset = (e: MouseEvent) => { e.stopPropagation(); setZoom(1); };
 
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0,0,0,.88)",
-      backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-      <div onClick={e => e.stopPropagation()}
-        style={{ background: "var(--surface)", borderRadius: 20, width: "100%", maxWidth: 860,
-          maxHeight: "92vh", overflow: "auto", boxShadow: "var(--shadow-lg)" }}>
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between",
-          padding: "18px 22px 14px", borderBottom: "1px solid var(--line)" }}>
-          <div>
-            <h2 style={{ color: "var(--ink)", fontWeight: 700, fontSize: 17, margin: 0 }}>{item.title}</h2>
-            <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
-              {item.categoryName && <span style={{ fontSize: 12, color: "var(--gold)", fontWeight: 600 }}>{item.categoryName}</span>}
-              {item.publishedAt && <span style={{ fontSize: 12, color: "var(--muted-2)" }}>{formatDate(item.publishedAt)}</span>}
-            </div>
-          </div>
-          <button onClick={onClose} style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid var(--line)",
-            background: "var(--surface-2)", cursor: "pointer", fontSize: 20, color: "var(--muted)",
-            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>×</button>
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 200,
+      background: "rgba(0,0,0,.97)", display: "flex", flexDirection: "column",
+    }}>
+
+      {/* ── Top bar ── */}
+      <div style={{
+        position: "absolute", top: 0, left: 0, right: 0, zIndex: 210,
+        padding: "14px 18px",
+        background: "linear-gradient(to bottom,rgba(0,0,0,.85),transparent)",
+        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+      }}>
+        {/* Title */}
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <p style={{ color: "#fff", fontWeight: 700, fontSize: 14, margin: 0,
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.title}</p>
+          {item.publishedAt && (
+            <p style={{ color: "rgba(255,255,255,.45)", fontSize: 11, margin: "2px 0 0" }}>{fmtDate(item.publishedAt)}</p>
+          )}
         </div>
-        {item.summary && <p style={{ padding: "10px 22px 0", color: "var(--muted)", fontSize: 13, margin: 0 }}>{item.summary}</p>}
-        <div style={{ padding: 22 }}>
-          {loading && (
-            <div style={{ paddingTop: "60%", position: "relative", background: "var(--surface-2)", borderRadius: 12 }}>
-              <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column",
-                alignItems: "center", justifyContent: "center", gap: 12 }}>
-                <div style={{ width: 40, height: 40, borderRadius: "50%", border: "3px solid var(--gold)",
-                  borderTopColor: "transparent", animation: "spin 1s linear infinite" }} />
-                <p style={{ color: "var(--muted)", fontSize: 14 }}>جارٍ التحميل...</p>
-              </div>
-            </div>
+
+        {/* Controls */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+          {/* Zoom out */}
+          <button onClick={zoomOut} title="تصغير (−)"
+            style={iconBtn}>{zoomIcon("−")}</button>
+          {/* Zoom % */}
+          <button onClick={zoomReset} title="إعادة الضبط"
+            style={{ ...iconBtn, minWidth: 52, fontSize: 11, borderRadius: 8, fontWeight: 700, color: "rgba(255,255,255,.7)" }}>
+            {Math.round(zoom * 100)}%
+          </button>
+          {/* Zoom in */}
+          <button onClick={zoomIn} title="تكبير (+)"
+            style={iconBtn}>{zoomIcon("+")}</button>
+
+          <div style={{ width: 1, height: 24, background: "rgba(255,255,255,.15)", margin: "0 4px" }} />
+
+          {/* Download */}
+          {url && (
+            <button disabled={dl}
+              onClick={async (e) => {
+                e.stopPropagation();
+                setDl(true);
+                try { await downloadBlob(url, item.title + ".jpg"); }
+                finally { setDl(false); }
+              }}
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                padding: "7px 16px", borderRadius: 20,
+                border: "1px solid rgba(255,255,255,.25)",
+                background: dl ? "rgba(255,255,255,.07)" : "rgba(255,255,255,.12)",
+                color: dl ? "rgba(255,255,255,.4)" : "#fff",
+                fontSize: 12, fontWeight: 600, cursor: dl ? "default" : "pointer",
+              }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <path d="M12 5v14M5 12l7 7 7-7"/>
+              </svg>
+              {dl ? "جارٍ..." : "تحميل"}
+            </button>
           )}
-          {err && !loading && <p style={{ textAlign: "center", color: "var(--muted)", padding: "40px 0" }}>تعذّر تحميل الصورة</p>}
-          {url && !loading && (
-            <div style={{ textAlign: "center" }}>
-              <img src={url} alt={item.title} style={{ maxWidth: "100%", borderRadius: 12, display: "block", margin: "0 auto" }} />
-              <button disabled={downloading}
-                onClick={async () => {
-                  setDownloading(true);
-                  try { await downloadBlob(url, item.title + ".jpg"); } finally { setDownloading(false); }
-                }}
-                style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 14,
-                  padding: "8px 20px", borderRadius: 10, border: "none",
-                  background: downloading ? "var(--line)" : "var(--forest)", color: downloading ? "var(--muted)" : "#fff",
-                  fontSize: 13, fontWeight: 600, cursor: downloading ? "default" : "pointer" }}>
-                {downloading ? "جارٍ التحميل..." : "⬇ تحميل الصورة"}
-              </button>
-            </div>
-          )}
+
+          {/* Close */}
+          <button onClick={onClose} style={iconBtn}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+          </button>
         </div>
       </div>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+
+      {/* ── Image area ── */}
+      <div onClick={onClose} onWheel={handleWheel}
+        style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
+          overflow: "hidden", position: "relative" }}>
+
+        {/* Prev arrow */}
+        {hasPrev && (
+          <button onClick={e => { e.stopPropagation(); onNavigate(items[idx - 1].id); }}
+            style={{ ...navBtn, right: 16 }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="15 18 9 12 15 6"/>
+            </svg>
+          </button>
+        )}
+
+        {/* Loading spinner */}
+        {loading && (
+          <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column",
+            alignItems: "center", justifyContent: "center", gap: 12, pointerEvents: "none" }}>
+            <div style={{ width: 48, height: 48, borderRadius: "50%",
+              border: "3px solid var(--gold)", borderTopColor: "transparent",
+              animation: "gl-spin 1s linear infinite" }} />
+            <p style={{ color: "rgba(255,255,255,.4)", fontSize: 12, margin: 0 }}>جارٍ تحميل الصورة...</p>
+          </div>
+        )}
+
+        {/* Image */}
+        {url && (
+          <img
+            src={url} alt={item.title}
+            onClick={e => e.stopPropagation()}
+            style={{
+              maxWidth: "calc(100vw - 100px)", maxHeight: "calc(100vh - 130px)",
+              objectFit: "contain",
+              transform: `scale(${zoom})`,
+              transition: zoom === 1 ? "transform .25s cubic-bezier(.34,1.4,.64,1)" : "none",
+              cursor: zoom > 1 ? "grab" : "default",
+              userSelect: "none", WebkitUserDrag: "none",
+              borderRadius: zoom === 1 ? 10 : 0,
+              boxShadow: zoom === 1 ? "0 24px 80px rgba(0,0,0,.8)" : "none",
+            } as import("react").CSSProperties}
+          />
+        )}
+
+        {/* Next arrow */}
+        {hasNext && (
+          <button onClick={e => { e.stopPropagation(); onNavigate(items[idx + 1].id); }}
+            style={{ ...navBtn, left: 16 }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </button>
+        )}
+      </div>
+
+      {/* ── Bottom — dot indicators + counter ── */}
+      <div style={{
+        position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 210,
+        padding: "14px", textAlign: "center",
+        background: "linear-gradient(to top,rgba(0,0,0,.7),transparent)",
+        display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
+      }}>
+        {items.length > 1 && items.length <= 24 && (
+          <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
+            {items.map((it, i) => (
+              <button key={it.id}
+                onClick={e => { e.stopPropagation(); onNavigate(it.id); }}
+                style={{
+                  width: i === idx ? 20 : 6, height: 6, borderRadius: 3, border: "none", padding: 0,
+                  background: i === idx ? "var(--gold)" : "rgba(255,255,255,.3)",
+                  cursor: "pointer", transition: "all .2s",
+                }} />
+            ))}
+          </div>
+        )}
+        <span style={{ color: "rgba(255,255,255,.35)", fontSize: 11 }}>
+          {idx + 1} / {items.length}
+          {zoom > 1 && <> · ⌨ +/− للتكبير · 0 لإعادة الضبط</>}
+        </span>
+      </div>
+
+      <style>{`
+        @keyframes gl-spin { to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   );
 }
 
-function Pagination({ page, totalPages, setPage }: { page: number; totalPages: number; setPage: (p: number) => void }) {
-  if (totalPages <= 1) return null;
-  const pages = Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
-    if (totalPages <= 7) return i + 1;
-    if (page <= 4) return i + 1;
-    if (page >= totalPages - 3) return totalPages - 6 + i;
-    return page - 3 + i;
-  });
+/* ── Icon button style ── */
+const iconBtn: import("react").CSSProperties = {
+  width: 36, height: 36, borderRadius: "50%", border: "1px solid rgba(255,255,255,.2)",
+  background: "rgba(255,255,255,.08)", color: "#fff", cursor: "pointer",
+  display: "flex", alignItems: "center", justifyContent: "center",
+  transition: "background .15s", flexShrink: 0,
+};
+
+const navBtn: import("react").CSSProperties = {
+  position: "absolute", top: "50%", transform: "translateY(-50%)", zIndex: 5,
+  width: 48, height: 48, borderRadius: "50%",
+  border: "1px solid rgba(255,255,255,.2)",
+  background: "rgba(0,0,0,.5)", backdropFilter: "blur(8px)",
+  color: "#fff", cursor: "pointer",
+  display: "flex", alignItems: "center", justifyContent: "center",
+  transition: "background .15s",
+};
+
+function zoomIcon(sym: string) {
+  return <span style={{ fontSize: 18, lineHeight: 1, fontWeight: 300 }}>{sym}</span>;
+}
+
+/* ─── Sub-category filter ────────────────────────────────── */
+function FilterChips({ category, activeSubId, onSelect }: {
+  category: PubCategory | null | undefined;
+  activeSubId: string | null;
+  onSelect: (id: string | null) => void;
+}) {
+  const subs = category?.subcategories ?? [];
+  if (!category || subs.length === 0) return null;
   return (
-    <div style={{ display: "flex", justifyContent: "center", gap: 6, marginTop: 40, flexWrap: "wrap" }}>
-      <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1}
-        style={{ padding: "8px 16px", borderRadius: 10, border: "1px solid var(--line)",
-          background: "var(--surface)", color: page === 1 ? "var(--muted-2)" : "var(--ink)",
-          cursor: page === 1 ? "default" : "pointer", fontSize: 13 }}>السابق</button>
-      {pages.map(p => (
-        <button key={p} onClick={() => setPage(p)}
-          style={{ width: 38, height: 38, borderRadius: 10, border: "1px solid",
-            borderColor: p === page ? "var(--gold)" : "var(--line)",
-            background: p === page ? "var(--gold)" : "var(--surface)",
-            color: p === page ? "var(--forest)" : "var(--ink)",
-            fontWeight: p === page ? 700 : 400, cursor: "pointer", fontSize: 13 }}>{p}</button>
-      ))}
-      <button onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page === totalPages}
-        style={{ padding: "8px 16px", borderRadius: 10, border: "1px solid var(--line)",
-          background: "var(--surface)", color: page === totalPages ? "var(--muted-2)" : "var(--ink)",
-          cursor: page === totalPages ? "default" : "pointer", fontSize: 13 }}>التالي</button>
+    <div style={{ display: "flex", gap: 8, flexWrap: "nowrap",
+      overflowX: "auto", scrollbarWidth: "none", paddingBottom: 2 }}>
+      {[{ id: null as string | null, name: "الكل" }, ...subs.map(s => ({ id: s.id, name: s.name }))].map(chip => {
+        const active = chip.id === activeSubId;
+        return (
+          <button key={chip.id ?? "all"} onClick={() => onSelect(chip.id)}
+            style={{
+              flexShrink: 0, padding: "6px 16px", borderRadius: 999, fontSize: 13,
+              fontWeight: active ? 700 : 500,
+              border: `1px solid ${active ? "var(--ink)" : "var(--line)"}`,
+              background: active ? "var(--ink)" : "transparent",
+              color: active ? "var(--bg)" : "var(--ink-2)",
+              cursor: "pointer", transition: "all .15s",
+            }}>
+            {chip.name}
+          </button>
+        );
+      })}
     </div>
   );
 }
+
+/* ─── Page ───────────────────────────────────────────────── */
+const PAGE_SIZE = 20;
 
 export default function GalleryPage() {
-  const [pageCategory, setPageCategory] = useState<PubCategory | null>(null);
-  const [subId, setSubId] = useState<string | null>(null);
-  const [items, setItems] = useState<PublicItem[]>([]);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const [activeItem, setActiveItem] = useState<PublicItem | null>(null);
+  const [page,     setPage]     = useState(1);
+  const [subId,    setSubId]    = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
 
-  useEffect(() => {
-    const ctrl = new AbortController();
-    fetchPublicCategories(ctrl.signal)
-      .then(cats => {
-        const cat = cats.find(c => c.name === CATEGORY_NAME) ?? null;
-        setPageCategory(cat);
-        if (!cat) setLoading(false);
-      })
-      .catch(e => { if (e.name !== "AbortError") { setError(true); setLoading(false); } });
-    return () => ctrl.abort();
+  const { category, items, totalPages, loading, error } = useCategoryData(
+    "صور / Images", page, subId, PAGE_SIZE, 2,
+  );
+
+  const handleSub = useCallback((id: string | null) => {
+    setSubId(id); setPage(1);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
-  useEffect(() => {
-    if (!pageCategory) return;
-    const ctrl = new AbortController();
-    setLoading(true); setError(false);
-    fetchPublicContents(
-      { page, pageSize: PAGE_SIZE, categoryId: pageCategory.id,
-        subcategoryId: subId ?? undefined, mediaType: MEDIA_TYPE },
-      ctrl.signal
-    )
-      .then(d => { setItems(d.items); setTotalPages(d.totalPages); })
-      .catch(e => { if (e.name !== "AbortError") setError(true); })
-      .finally(() => setLoading(false));
-    return () => ctrl.abort();
-  }, [pageCategory, page, subId]);
+  const handlePage = useCallback((p: number) => {
+    setPage(p);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
 
-  const handleSub = useCallback((id: string | null) => { setSubId(id); setPage(1); }, []);
+  const activeItem = items.find((i: PublicItem) => i.id === activeId) ?? null;
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--bg)" }}>
       <Header />
-      <main style={{ flex: 1 }}>
-        <div style={{ padding: "28px 0 0", borderBottom: "1px solid var(--line)" }}>
-          <div className="container-main">
-            <h1 style={{ fontSize: 26, fontWeight: 800, color: "var(--ink)", fontFamily: "'Noto Kufi Arabic',sans-serif" }}>
-              🖼️ {CATEGORY_NAME}
-            </h1>
-            <p style={{ color: "var(--muted)", marginTop: 4, fontSize: 14 }}>استعرض مجموعة الصور</p>
 
-            {/* Subcategory tabs */}
-            <div style={{ display: "flex", gap: 8, overflowX: "auto", padding: "16px 0 0", scrollbarWidth: "none" }}>
-              <button onClick={() => handleSub(null)}
-                style={{ flexShrink: 0, padding: "7px 20px", borderRadius: 999, border: "1px solid",
-                  borderColor: subId === null ? "var(--gold)" : "var(--line)",
-                  background: subId === null ? "var(--gold)" : "transparent",
-                  color: subId === null ? "var(--forest)" : "var(--ink)",
-                  fontWeight: 600, fontSize: 13, cursor: "pointer" }}>الكل</button>
-              {(pageCategory?.subcategories ?? []).map(sub => (
-                <button key={sub.id} onClick={() => handleSub(sub.id)}
-                  style={{ flexShrink: 0, padding: "7px 20px", borderRadius: 999, border: "1px solid",
-                    borderColor: subId === sub.id ? "var(--gold)" : "var(--line)",
-                    background: subId === sub.id ? "var(--gold)" : "transparent",
-                    color: subId === sub.id ? "var(--forest)" : "var(--ink)",
-                    fontWeight: 600, fontSize: 13, cursor: "pointer" }}>{sub.name}</button>
-              ))}
+      {/* ── Hero banner ── */}
+      <div style={{
+        background: "linear-gradient(150deg,#1e1b4b 0%,#312e81 45%,#0f0e1f 100%)",
+        padding: "clamp(24px,5vw,44px) 0 clamp(20px,4vw,36px)",
+        position: "relative", overflow: "hidden",
+      }}>
+        <div style={{ position: "absolute", inset: 0, opacity: .05,
+          backgroundImage: "radial-gradient(circle,#fff 1px,transparent 1px)",
+          backgroundSize: "30px 30px" }} />
+        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 4,
+          background: "linear-gradient(90deg,var(--gold),#e8c05a,var(--gold))" }} />
+
+        <div className="gl-wrap" style={{ position: "relative", zIndex: 1 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,.4)",
+                letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 6 }}>
+                B-Media · Gallery
+              </div>
+              <h1 style={{ color: "#fff", margin: 0, fontWeight: 900,
+                fontSize: "clamp(22px,4vw,36px)", lineHeight: 1.1,
+                fontFamily: "'Noto Kufi Arabic',sans-serif" }}>
+                🖼️ معرض الصور
+              </h1>
+              <p style={{ color: "rgba(255,255,255,.45)", margin: "6px 0 0", fontSize: 14 }}>
+                استعرض وكبّر وحمّل صور المنصة
+              </p>
             </div>
+            {!loading && items.length > 0 && (
+              <div style={{ background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.15)",
+                borderRadius: 14, padding: "10px 20px", textAlign: "center" }}>
+                <div style={{ color: "var(--gold)", fontWeight: 900, fontSize: 22, lineHeight: 1 }}>
+                  {totalPages * PAGE_SIZE}+
+                </div>
+                <div style={{ color: "rgba(255,255,255,.4)", fontSize: 11, marginTop: 3 }}>صورة</div>
+              </div>
+            )}
           </div>
         </div>
+      </div>
 
-        <div className="container-main" style={{ padding: "32px 0 48px" }}>
-          {error && <p style={{ textAlign: "center", padding: 40, color: "var(--muted)" }}>حدث خطأ أثناء التحميل</p>}
-          {loading ? (
-            <div className="ggrid">
-              {Array.from({ length: PAGE_SIZE }).map((_, i) => <SkeletonCard key={i} />)}
+      {/* ── Sticky filter ── */}
+      {category && (category.subcategories?.length ?? 0) > 0 && (
+        <div style={{
+          position: "sticky", top: 65, zIndex: 40,
+          background: "color-mix(in srgb,var(--bg) 92%,transparent)",
+          backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
+          borderBottom: "1px solid var(--line)", paddingTop: 10, paddingBottom: 10,
+        }}>
+          <div className="gl-wrap">
+            <FilterChips category={category} activeSubId={subId} onSelect={handleSub} />
+          </div>
+        </div>
+      )}
+
+      {/* ── Masonry grid ── */}
+      <main style={{ flex: 1 }}>
+        <div className="gl-wrap" style={{ paddingTop: 28, paddingBottom: 56 }}>
+
+          {error && (
+            <div style={{ textAlign: "center", padding: 60 }}>
+              <p style={{ color: "var(--muted)", marginBottom: 16 }}>حدث خطأ أثناء التحميل</p>
+              <button onClick={() => window.location.reload()} style={{
+                padding: "8px 22px", borderRadius: 10, border: "1px solid var(--line)",
+                background: "var(--surface)", color: "var(--ink)", cursor: "pointer", fontSize: 13,
+              }}>إعادة المحاولة</button>
             </div>
-          ) : !error && items.length === 0 ? (
-            <p style={{ textAlign: "center", padding: 60, color: "var(--muted)" }}>لا توجد صور في هذا القسم حالياً</p>
-          ) : !error && (
-            <div className="ggrid">
-              {items.map(item => (
-                <ImageCard key={item.id} item={item} onClick={() => setActiveItem(item)} />
+          )}
+
+          {loading && (
+            <div className="gl-masonry">
+              {Array.from({ length: PAGE_SIZE }).map((_, i) => <SkeletonCard key={i} index={i} />)}
+            </div>
+          )}
+
+          {!loading && !error && items.length === 0 && (
+            <div style={{ textAlign: "center", padding: "80px 0" }}>
+              <div style={{ fontSize: 52, marginBottom: 16 }}>🖼️</div>
+              <p style={{ color: "var(--muted)", fontSize: 15 }}>لا توجد صور في هذا القسم حالياً</p>
+            </div>
+          )}
+
+          {!loading && !error && items.length > 0 && (
+            <div className="gl-masonry">
+              {items.map((item: PublicItem, i: number) => (
+                <ImageCard key={item.id} item={item} index={i} onClick={() => setActiveId(item.id)} />
               ))}
             </div>
           )}
-          <Pagination page={page} totalPages={totalPages} setPage={setPage} />
+
+          <Pagination page={page} totalPages={totalPages} setPage={handlePage} />
         </div>
       </main>
+
       <Footer />
-      {activeItem && <ImageLightbox item={activeItem} onClose={() => setActiveItem(null)} />}
+
+      {activeItem && (
+        <Lightbox
+          item={activeItem}
+          items={items}
+          onClose={() => setActiveId(null)}
+          onNavigate={(id) => setActiveId(id)}
+        />
+      )}
+
       <style>{`
-        .container-main { max-width: 1280px; margin: 0 auto; padding-inline: 24px; }
-        .ggrid { display: grid; gap: 20px; grid-template-columns: repeat(4, 1fr); }
-        @media (max-width: 1280px) { .ggrid { grid-template-columns: repeat(3, 1fr); } }
-        @media (max-width: 768px)  { .ggrid { grid-template-columns: repeat(2, 1fr); } }
-        @media (max-width: 480px)  { .ggrid { grid-template-columns: 1fr; } }
+        .gl-wrap {
+          max-width: 1320px;
+          margin: 0 auto;
+          padding-left: 20px;
+          padding-right: 20px;
+        }
+        .gl-masonry {
+          columns: 4;
+          column-gap: 14px;
+        }
+        .gl-card {
+          break-inside: avoid;
+          margin-bottom: 14px;
+        }
+        @media (max-width: 1100px) { .gl-masonry { columns: 3; } }
+        @media (max-width: 720px)  { .gl-masonry { columns: 2; column-gap: 10px; } .gl-card { margin-bottom: 10px; } }
+        @media (max-width: 640px)  { .gl-wrap { padding-left: 14px; padding-right: 14px; } }
+        @media (max-width: 420px)  { .gl-masonry { columns: 2; column-gap: 8px; } .gl-card { margin-bottom: 8px; } }
       `}</style>
     </div>
   );
