@@ -10,7 +10,7 @@ import {
 import { useLang } from "@/lib/LangContext";
 
 const PAGE_SIZE = 16;
-const CATEGORY_NAME = "الصور";
+const CATEGORY_ORDER = 4;
 const MEDIA_TYPE = 2; // Image
 
 function formatDate(iso: string | null) {
@@ -232,7 +232,7 @@ export default function GalleryPage() {
     const ctrl = new AbortController();
     fetchPublicCategories(ctrl.signal)
       .then(cats => {
-        const cat = cats.find(c => c.name === CATEGORY_NAME) ?? null;
+        const cat = cats.find(c => c.sortOrder === CATEGORY_ORDER) ?? null;
         setPageCategory(cat);
         if (!cat) setLoading(false);
       })
@@ -264,7 +264,7 @@ export default function GalleryPage() {
         <div style={{ padding: "28px 0 0", borderBottom: "1px solid var(--line)" }}>
           <div className="container-main">
             <h1 style={{ fontSize: 26, fontWeight: 800, color: "var(--ink)", fontFamily: "'Noto Kufi Arabic',sans-serif" }}>
-              🖼️ {CATEGORY_NAME}
+              🖼️ {pageCategory?.name ?? "الصور"}
             </h1>
             <p style={{ color: "var(--muted)", marginTop: 4, fontSize: 14 }}>{t.browseAllImages}</p>
 

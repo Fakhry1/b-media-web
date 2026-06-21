@@ -33,6 +33,7 @@ export interface PubCategory {
   id: string;
   name: string;
   slug: string;
+  sortOrder: number;
   iconUrl: string | null;
   subcategories: { id: string; name: string; slug: string }[];
 }
